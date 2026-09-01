@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farmer Dashboard - CropKart</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container navbar-content">
+            <div class="logo">🌾 CropKart</div>
+            <div class="nav-links" id="navLinks">
+                <a href="index.html">Home</a>
+                <a href="marketplace.html">Marketplace</a>
+                <a href="nearby.html">📍 Crops Near Me</a>
+            </div>
+            <div class="auth-menu" id="authMenu">
+                <span id="userName"></span>
+                <a href="#" onclick="logout(event)" class="btn btn-secondary">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <div class="container">
+            <h1 style="margin-bottom: 2rem;">👨‍🌾 Farmer Dashboard</h1>
+
+            <!-- Add New Crop Form -->
+            <div class="card" style="margin-bottom: 2rem;">
+                <div class="card-body">
+                    <h2 style="margin-bottom: 1.5rem;">➕ List New Crop</h2>
+                    <form id="addCropForm">
+                        <div class="grid grid-2" style="gap: 1rem;">
+                            <div class="form-group">
+                                <label>Crop Name</label>
+                                <input type="text" id="cropName" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Category</label>
+                                <select id="cropCategory" required>
+                                    <option value="">Select Category</option>
+                                    <option value="vegetables">Vegetables</option>
+                                    <option value="fruits">Fruits</option>
+                                    <option value="grains">Grains</option>
+                                    <option value="spices">Spices</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Quantity (kg)</label>
+                                <input type="number" id="cropQuantity" min="1" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Price per kg (₹)</label>
+                                <input type="number" id="cropPrice" min="0" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Quality</label>
+                                <select id="cropQuality" required>
+                                    <option value="Premium">Premium</option>
+                                    <option value="Good">Good</option>
+                                    <option value="Standard">Standard</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Location</label>
+                                <input type="text" id="cropLocation" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea id="cropDescription" rows="3" placeholder="Optional: Details about your crop"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">📤 List Crop</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 2px solid var(--border-light);">
+                <button onclick="switchTab('myCrops')" class="tab-button active" style="padding: 1rem; border: none; background: none; cursor: pointer; font-weight: 500; border-bottom: 3px solid var(--primary-green); margin-bottom: -2px;">🌾 My Crops</button>
+                <button onclick="switchTab('requests')" class="tab-button" style="padding: 1rem; border: none; background: none; cursor: pointer; font-weight: 500; border-bottom: 3px solid transparent; margin-bottom: -2px;">📋 Purchase Requests</button>
+            </div>
+
+            <!-- My Crops Tab -->
+            <div id="myCropsTab" class="tab-content">
+                <div id="cropsList" class="grid grid-2">
+                    <p style="grid-column: 1/-1; text-align: center;">Loading your crops...</p>
+                </div>
+            </div>
+
+            <!-- Purchase Requests Tab -->
+            <div id="requestsTab" class="tab-content" style="display: none;">
+                <div id="requestsList" class="grid grid-1">
+                    <p style="text-align: center;">Loading requests...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 CropKart. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+    <script>
+        const user = checkAuthRedirect();
+        if (user.role !== 'farmer') location.href = 'index.html';
+
+        document.getElementById('userName').textContent = `👤 ${user.name}`;
+
+        async function loadMyCrops() {
+            try {
+                const response = await apiCall('GET', '/crops');
+                const crops = (response.crops || []).filter(c => c.farmerName === user.name);
+
+                if (crops.length === 0) {
+                    document.getElementById('cropsList').innerHTML = '<p style="grid-column: 1/-1; text-align: center;">No crops listed yet.</p>';
+                    return;
+                }
+
+                document.getElementById('cropsList').innerHTML = crops.map(crop => `
+                    <div class="card crop-card">
+                        <div style="background-color: var(--primary-light); height: 150px; display: flex; align-items: center; justify-content: center; font-size: 3rem;">🌾</div>
+                        <div class="crop-info">
+                            <div class="crop-name">${crop.name}</div>
+                            <div class="crop-details">
+                                <div class="crop-detail">🎯 ${crop.category}</div>
+                                <div class="crop-detail">📦 ${crop.quantity} kg available</div>
+                                <div class="crop-detail">💰 ₹${crop.price}/kg</div>
+                                <div class="crop-detail">⭐ ${crop.quality}</div>
+                            </div>
+                            <div class="crop-actions">
+                                <button onclick="deleteCrop('${crop.id}')" class="btn btn-danger">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                document.getElementById('cropsList').innerHTML = `<p style="grid-column: 1/-1; color: red;">Error: ${error.message}</p>`;
+            }
+        }
+
+        async function loadRequests() {
+            try {
+                const response = await apiCall('GET', '/purchase-requests');
+                const requests = (response.requests || []).filter(r => r.status !== 'completed');
+
+                if (requests.length === 0) {
+                    document.getElementById('requestsList').innerHTML = '<p style="text-align: center;">No pending purchase requests.</p>';
+                    return;
+                }
+
+                document.getElementById('requestsList').innerHTML = requests.map(req => `
+                    <div class="card">
+                        <div class="card-body">
+                            <div style="display: flex; justify-content: space-between; align-items: start; gap: 1rem;">
+                                <div style="flex: 1;">
+                                    <h3>${req.cropName} - ${req.quantity} kg</h3>
+                                    <p style="color: var(--secondary-gray); margin: 0.5rem 0;">
+                                        📍 ${req.deliveryLocation}
+                                    </p>
+                                    <p style="color: var(--secondary-gray); margin: 0.5rem 0;">
+                                        👤 Buyer: ${req.buyerName || 'Unknown'}
+                                    </p>
+                                    <p style="color: var(--secondary-gray); margin: 0.5rem 0;">
+                                        💰 Total: ₹${req.totalPrice}
+                                    </p>
+                                    <span class="badge ${req.status === 'pending' ? 'badge-warning' : 'badge-success'}">${req.status.toUpperCase()}</span>
+                                </div>
+                                ${req.status === 'pending' ? `
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <button onclick="acceptRequest('${req.id}')" class="btn btn-primary" style="white-space: nowrap;">✓ Accept</button>
+                                        <button onclick="rejectRequest('${req.id}')" class="btn btn-danger" style="white-space: nowrap;">✗ Reject</button>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                document.getElementById('requestsList').innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+
+        async function deleteCrop(cropId) {
+            if (!confirm('Are you sure you want to delete this crop?')) return;
+            try {
+                await apiCall('DELETE', `/crops/${cropId}`);
+                showAlert('Crop deleted successfully!', 'success');
+                loadMyCrops();
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        }
+
+        async function acceptRequest(requestId) {
+            try {
+                await apiCall('PUT', `/purchase-requests/${requestId}`, { status: 'accepted' });
+                showAlert('Request accepted!', 'success');
+                loadRequests();
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        }
+
+        async function rejectRequest(requestId) {
+            try {
+                await apiCall('PUT', `/purchase-requests/${requestId}`, { status: 'rejected' });
+                showAlert('Request rejected!', 'success');
+                loadRequests();
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        }
+
+        document.getElementById('addCropForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const cropData = {
+                name: document.getElementById('cropName').value,
+                category: document.getElementById('cropCategory').value,
+                quantity: parseInt(document.getElementById('cropQuantity').value),
+                price: parseFloat(document.getElementById('cropPrice').value),
+                quality: document.getElementById('cropQuality').value,
+                location: document.getElementById('cropLocation').value,
+                description: document.getElementById('cropDescription').value
+            };
+
+            try {
+                await apiCall('POST', '/crops', cropData);
+                showAlert('Crop listed successfully!', 'success');
+                document.getElementById('addCropForm').reset();
+                loadMyCrops();
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        });
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+            document.querySelectorAll('.tab-button').forEach(b => b.style.borderBottomColor = 'transparent');
+            
+            if (tab === 'myCrops') {
+                document.getElementById('myCropsTab').style.display = 'block';
+                event.target.style.borderBottomColor = 'var(--primary-green)';
+            } else {
+                document.getElementById('requestsTab').style.display = 'block';
+                event.target.style.borderBottomColor = 'var(--primary-green)';
+            }
+        }
+
+        loadMyCrops();
+        loadRequests();
+        setInterval(loadRequests, 5000);
+    </script>
+</body>
+</html>

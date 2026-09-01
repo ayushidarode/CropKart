@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crop Details - CropKart</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container navbar-content">
+            <div class="logo">🌾 CropKart</div>
+            <div class="nav-links" id="navLinks">
+                <a href="index.html">Home</a>
+                <a href="marketplace.html">Marketplace</a>
+                <a href="nearby.html">📍 Crops Near Me</a>
+                <a href="#" onclick="toggleAuthMenu()">👤 Account</a>
+            </div>
+            <div class="auth-menu" id="authMenu">
+                <a href="login.html" class="btn btn-secondary">Login</a>
+                <a href="register.html" class="btn btn-primary">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <div class="container">
+            <a href="marketplace.html" style="color: var(--primary-green); text-decoration: none; margin-bottom: 2rem; display: inline-block;">← Back to Marketplace</a>
+
+            <div id="cropDetail" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <div class="card">
+                    <div style="background-color: var(--primary-light); height: 400px; display: flex; align-items: center; justify-content: center; font-size: 6rem;">
+                        🌾
+                    </div>
+                </div>
+
+                <div>
+                    <h1 id="cropName" style="margin-bottom: 1rem;"></h1>
+                    <div class="crop-details" style="margin-bottom: 2rem; font-size: 1.1rem;">
+                        <div class="crop-detail">👨‍🌾 <strong>Farmer:</strong> <span id="farmerName"></span></div>
+                        <div class="crop-detail">📞 <strong>Contact:</strong> <span id="farmerPhone"></span></div>
+                        <div class="crop-detail">📍 <strong>Location:</strong> <span id="cropLocation"></span></div>
+                        <div class="crop-detail">🎯 <strong>Category:</strong> <span id="cropCategory"></span></div>
+                        <div class="crop-detail">📦 <strong>Available:</strong> <span id="cropQuantity"></span> kg</div>
+                        <div class="crop-detail">🌾 <strong>Quality:</strong> <span id="cropQuality"></span></div>
+                    </div>
+
+                    <div class="card" style="margin-bottom: 2rem;">
+                        <div class="card-body">
+                            <h3 style="margin-bottom: 1rem;">💰 Pricing</h3>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <span>Price per kg:</span>
+                                <span style="font-size: 2rem; color: var(--primary-green); font-weight: 700;">₹<span id="cropPrice"></span></span>
+                            </div>
+                            <p id="marketPrice" style="color: var(--secondary-gray); font-size: 0.9rem;"></p>
+                        </div>
+                    </div>
+
+                    <div id="purchaseSection">
+                        <div class="card">
+                            <div class="card-body">
+                                <h3 style="margin-bottom: 1.5rem;">📋 Send Purchase Request</h3>
+                                <form id="purchaseForm">
+                                    <div class="form-group">
+                                        <label>Quantity (kg)</label>
+                                        <input type="number" id="requestQuantity" min="1" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Delivery Location</label>
+                                        <input type="text" id="requestDelivery" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Notes (Optional)</label>
+                                        <textarea id="requestNotes" rows="3"></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary" style="width: 100%;">Send Request</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="notAuthSection" style="display: none;">
+                        <div class="alert alert-info">
+                            Please <a href="login.html" style="color: inherit; font-weight: bold;">login</a> to send a purchase request.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 4rem;">
+                <h2>📊 Market Insights</h2>
+                <div class="grid grid-3" style="margin-top: 1.5rem;">
+                    <div class="card">
+                        <div class="card-body">
+                            <h4>Current Market Price</h4>
+                            <p style="font-size: 2rem; color: var(--primary-green); font-weight: 700; margin: 1rem 0;">
+                                ₹<span id="marketCurrentPrice">-</span>
+                            </p>
+                            <p style="color: var(--secondary-gray);">Average price in your region</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-body">
+                            <h4>Price Comparison</h4>
+                            <p id="priceComparison" style="margin: 1rem 0;"></p>
+                            <p style="color: var(--secondary-gray);">Farmer's price vs market rate</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-body">
+                            <h4>Freshness Score</h4>
+                            <p style="font-size: 2rem; color: var(--primary-green); font-weight: 700; margin: 1rem 0;" id="freshnessScore">-</p>
+                            <p style="color: var(--secondary-gray);">Quality rating</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 CropKart. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+    <script>
+        const params = new URLSearchParams(location.search);
+        const cropId = params.get('id');
+
+        async function loadCropDetail() {
+            try {
+                const response = await apiCall('GET', `/crops/${cropId}`);
+                const crop = response.crop;
+
+                document.getElementById('cropName').textContent = crop.name;
+                document.getElementById('farmerName').textContent = crop.farmerName || 'Unknown';
+                document.getElementById('farmerPhone').textContent = crop.farmerPhone || crop.farmerContact || '-';
+                document.getElementById('cropLocation').textContent = crop.location;
+                document.getElementById('cropCategory').textContent = crop.category;
+                document.getElementById('cropQuantity').textContent = crop.quantity;
+                document.getElementById('cropQuality').textContent = crop.quality || 'Premium';
+                document.getElementById('cropPrice').textContent = crop.price;
+
+                // Load market price
+                try {
+                    const marketResponse = await apiCall('GET', `/market-prices/${crop.name}`);
+                    const marketData = marketResponse.price || crop.price;
+                    document.getElementById('marketCurrentPrice').textContent = marketData;
+                    document.getElementById('marketPrice').textContent = `📊 Market Average: ₹${marketData}/kg`;
+
+                    const diff = crop.price - marketData;
+                    if (diff < 0) {
+                        document.getElementById('priceComparison').innerHTML = `<span class="badge badge-success">Better Deal ₹${Math.abs(diff)} cheaper</span>`;
+                    } else if (diff > 0) {
+                        document.getElementById('priceComparison').innerHTML = `<span class="badge badge-warning">₹${diff} above market</span>`;
+                    } else {
+                        document.getElementById('priceComparison').textContent = 'At market price';
+                    }
+                } catch (e) {
+                    document.getElementById('marketCurrentPrice').textContent = crop.price;
+                }
+
+                document.getElementById('freshnessScore').textContent = crop.quality === 'Premium' ? '⭐⭐⭐⭐⭐' : crop.quality === 'Good' ? '⭐⭐⭐⭐' : '⭐⭐⭐';
+
+                // Check if user is logged in for purchase form
+                const user = checkAuthRedirect();
+                if (user && user.role === 'buyer') {
+                    document.getElementById('purchaseForm').addEventListener('submit', handlePurchaseSubmit);
+                } else if (!user) {
+                    document.getElementById('purchaseSection').style.display = 'none';
+                    document.getElementById('notAuthSection').style.display = 'block';
+                }
+            } catch (error) {
+                document.getElementById('cropDetail').innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+
+        async function handlePurchaseSubmit(e) {
+            e.preventDefault();
+            const quantity = document.getElementById('requestQuantity').value;
+            const deliveryLocation = document.getElementById('requestDelivery').value;
+            const notes = document.getElementById('requestNotes').value;
+
+            try {
+                await apiCall('POST', '/purchase-requests', {
+                    cropId,
+                    quantity: parseInt(quantity),
+                    deliveryLocation,
+                    notes
+                });
+                showAlert('Purchase request sent successfully!', 'success');
+                setTimeout(() => location.href = 'buyer-dashboard.html', 1500);
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        }
+
+        function toggleAuthMenu() {
+            const menu = document.getElementById('authMenu');
+            menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        loadCropDetail();
+    </script>
+</body>
+</html>

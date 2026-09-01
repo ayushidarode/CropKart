@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketplace - CropKart</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container navbar-content">
+            <div class="logo">🌾 CropKart</div>
+            <div class="nav-links" id="navLinks">
+                <a href="index.html">Home</a>
+                <a href="marketplace.html">Marketplace</a>
+                <a href="nearby.html">📍 Crops Near Me</a>
+                <a href="#" onclick="toggleAuthMenu()">👤 Account</a>
+            </div>
+            <div class="auth-menu" id="authMenu">
+                <a href="login.html" class="btn btn-secondary">Login</a>
+                <a href="register.html" class="btn btn-primary">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <div class="container">
+            <h1 style="margin-bottom: 2rem;">🛒 Marketplace</h1>
+
+            <div style="display: grid; grid-template-columns: 1fr 3fr; gap: 2rem; margin-bottom: 2rem;">
+                <div class="card">
+                    <div class="card-body">
+                        <h3 style="margin-bottom: 1.5rem;">Filters</h3>
+
+                        <div class="form-group">
+                            <label>Search</label>
+                            <input type="text" id="searchInput" placeholder="Search crops...">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Category</label>
+                            <select id="categoryFilter">
+                                <option value="">All Categories</option>
+                                <option value="vegetables">Vegetables</option>
+                                <option value="fruits">Fruits</option>
+                                <option value="grains">Grains</option>
+                                <option value="spices">Spices</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Price Range</label>
+                            <input type="range" id="priceFilter" min="0" max="1000" step="10">
+                            <small>Max: ₹<span id="priceValue">1000</span></small>
+                        </div>
+
+                        <button onclick="applyFilters()" class="btn btn-primary" style="width: 100%;">Apply Filters</button>
+                    </div>
+                </div>
+
+                <div>
+                    <div id="cropsList" class="grid grid-2">
+                        <p style="grid-column: 1/-1; text-align: center;">Loading crops...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 CropKart. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+    <script>
+        let allCrops = [];
+
+        async function loadCrops() {
+            try {
+                const response = await apiCall('GET', '/crops');
+                allCrops = response.crops || [];
+                displayCrops(allCrops);
+            } catch (error) {
+                document.getElementById('cropsList').innerHTML = `<p style="grid-column: 1/-1; color: red;">Error loading crops: ${error.message}</p>`;
+            }
+        }
+
+        function displayCrops(crops) {
+            const cropsList = document.getElementById('cropsList');
+            if (crops.length === 0) {
+                cropsList.innerHTML = '<p style="grid-column: 1/-1; text-align: center;">No crops available.</p>';
+                return;
+            }
+
+            cropsList.innerHTML = crops.map(crop => `
+                <div class="card crop-card">
+                    <div style="background-color: var(--primary-light); height: 200px; display: flex; align-items: center; justify-content: center; font-size: 3rem;">
+                        🌾
+                    </div>
+                    <div class="crop-info">
+                        <div class="crop-name">${crop.name}</div>
+                        <div class="crop-details">
+                            <div class="crop-detail">👨‍🌾 ${crop.farmerName || 'Farmer'}</div>
+                            <div class="crop-detail">📍 ${crop.location}</div>
+                            <div class="crop-detail">🎯 ${crop.category}</div>
+                            <div class="crop-detail">📦 ${crop.quantity} kg</div>
+                        </div>
+                        <div class="crop-price">₹${crop.price}/kg</div>
+                        <div class="crop-actions">
+                            <a href="crop-detail.html?id=${crop.id}" class="btn btn-primary">View Details</a>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function applyFilters() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const category = document.getElementById('categoryFilter').value;
+            const maxPrice = document.getElementById('priceFilter').value;
+
+            const filtered = allCrops.filter(crop => {
+                const matchesSearch = crop.name.toLowerCase().includes(search) || 
+                                    crop.farmerName?.toLowerCase().includes(search);
+                const matchesCategory = !category || crop.category?.toLowerCase() === category.toLowerCase();
+                const matchesPrice = crop.price <= maxPrice;
+                return matchesSearch && matchesCategory && matchesPrice;
+            });
+
+            displayCrops(filtered);
+        }
+
+        document.getElementById('priceFilter').addEventListener('input', (e) => {
+            document.getElementById('priceValue').textContent = e.target.value;
+        });
+
+        document.getElementById('searchInput').addEventListener('keyup', applyFilters);
+        document.getElementById('categoryFilter').addEventListener('change', applyFilters);
+
+        function toggleAuthMenu() {
+            const menu = document.getElementById('authMenu');
+            menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        loadCrops();
+    </script>
+</body>
+</html>

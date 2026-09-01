@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buyer Dashboard - CropKart</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container navbar-content">
+            <div class="logo">🌾 CropKart</div>
+            <div class="nav-links" id="navLinks">
+                <a href="index.html">Home</a>
+                <a href="marketplace.html">Marketplace</a>
+                <a href="nearby.html">📍 Crops Near Me</a>
+            </div>
+            <div class="auth-menu" id="authMenu">
+                <span id="userName"></span>
+                <a href="#" onclick="logout(event)" class="btn btn-secondary">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <div class="container">
+            <h1 style="margin-bottom: 2rem;">🛒 Buyer Dashboard</h1>
+
+            <!-- Statistics -->
+            <div class="grid grid-3" style="margin-bottom: 2rem;">
+                <div class="card">
+                    <div class="card-body">
+                        <h4>📋 Total Requests</h4>
+                        <p style="font-size: 2rem; color: var(--primary-green); font-weight: 700; margin: 1rem 0;" id="totalRequests">-</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-body">
+                        <h4>✓ Accepted</h4>
+                        <p style="font-size: 2rem; color: #059669; font-weight: 700; margin: 1rem 0;" id="acceptedCount">-</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-body">
+                        <h4>⏳ Pending</h4>
+                        <p style="font-size: 2rem; color: #f59e0b; font-weight: 700; margin: 1rem 0;" id="pendingCount">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
+                <a href="marketplace.html" class="btn btn-primary">🛒 Browse Marketplace</a>
+                <a href="nearby.html" class="btn btn-primary">📍 Explore Nearby Crops</a>
+            </div>
+
+            <!-- Purchase Requests -->
+            <div class="card">
+                <div class="card-body">
+                    <h2 style="margin-bottom: 1.5rem;">📋 My Purchase Requests</h2>
+                    <div id="requestsList" style="display: grid; gap: 1rem;">
+                        <p style="text-align: center;">Loading requests...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 CropKart. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+    <script>
+        const user = checkAuthRedirect();
+        if (user.role !== 'buyer') location.href = 'index.html';
+
+        document.getElementById('userName').textContent = `👤 ${user.name}`;
+
+        async function loadMyRequests() {
+            try {
+                const response = await apiCall('GET', '/purchase-requests');
+                const requests = response.requests || [];
+
+                // Update statistics
+                document.getElementById('totalRequests').textContent = requests.length;
+                document.getElementById('acceptedCount').textContent = requests.filter(r => r.status === 'accepted').length;
+                document.getElementById('pendingCount').textContent = requests.filter(r => r.status === 'pending').length;
+
+                if (requests.length === 0) {
+                    document.getElementById('requestsList').innerHTML = `
+                        <p style="text-align: center; color: var(--secondary-gray);">
+                            No requests yet. <a href="marketplace.html" style="color: var(--primary-green); text-decoration: none; font-weight: 500;">Start browsing crops</a>
+                        </p>
+                    `;
+                    return;
+                }
+
+                document.getElementById('requestsList').innerHTML = requests.map(req => `
+                    <div class="card">
+                        <div class="card-body">
+                            <div style="display: flex; justify-content: space-between; align-items: start; gap: 1rem; flex-wrap: wrap;">
+                                <div style="flex: 1; min-width: 200px;">
+                                    <h3 style="margin-bottom: 0.5rem;">${req.cropName} - ${req.quantity} kg</h3>
+                                    <div style="display: flex; flex-direction: column; gap: 0.5rem; color: var(--secondary-gray); font-size: 0.95rem;">
+                                        <div>👨‍🌾 Farmer: <strong>${req.farmerName || 'Unknown'}</strong></div>
+                                        <div>📍 Delivery: ${req.deliveryLocation}</div>
+                                        <div>💰 Total Price: <strong>₹${req.totalPrice}</strong></div>
+                                        <div>📅 Requested: ${new Date(req.createdAt || Date.now()).toLocaleDateString()}</div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;">
+                                    <span class="badge ${getStatusBadgeClass(req.status)}">${req.status.toUpperCase()}</span>
+                                    ${req.notes ? `<p style="font-size: 0.85rem; color: var(--secondary-gray); margin: 0.5rem 0;">Notes: ${req.notes}</p>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                document.getElementById('requestsList').innerHTML = `<p style="color: red;">Error loading requests: ${error.message}</p>`;
+            }
+        }
+
+        function getStatusBadgeClass(status) {
+            switch (status) {
+                case 'pending': return 'badge-warning';
+                case 'accepted': return 'badge-success';
+                case 'rejected': return 'badge-danger';
+                default: return 'badge-warning';
+            }
+        }
+
+        loadMyRequests();
+        // Auto-refresh every 5 seconds
+        setInterval(loadMyRequests, 5000);
+    </script>
+</body>
+</html>

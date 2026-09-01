@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crops Near Me - CropKart</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container navbar-content">
+            <div class="logo">🌾 CropKart</div>
+            <div class="nav-links" id="navLinks">
+                <a href="index.html">Home</a>
+                <a href="marketplace.html">Marketplace</a>
+                <a href="nearby.html">📍 Crops Near Me</a>
+                <a href="#" onclick="toggleAuthMenu()">👤 Account</a>
+            </div>
+            <div class="auth-menu" id="authMenu">
+                <a href="login.html" class="btn btn-secondary">Login</a>
+                <a href="register.html" class="btn btn-primary">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <div class="container">
+            <h1 style="margin-bottom: 2rem;">📍 Crops Near You</h1>
+
+            <div class="card" style="margin-bottom: 2rem;">
+                <div class="card-body">
+                    <h3 style="margin-bottom: 1.5rem;">Find Crops in Your Area</h3>
+                    <div class="grid grid-2" style="gap: 1rem;">
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Select Your Location</label>
+                            <select id="locationSelect" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-light); border-radius: 0.5rem;">
+                                <option value="">-- Choose Location --</option>
+                                <option value="28.6139,77.2090">📍 Delhi (28.6139, 77.2090)</option>
+                                <option value="19.0760,72.8777">📍 Mumbai (19.0760, 72.8777)</option>
+                                <option value="18.5204,73.8567">📍 Pune (18.5204, 73.8567)</option>
+                                <option value="13.0827,80.2707">📍 Chennai (13.0827, 80.2707)</option>
+                                <option value="12.9716,77.5946">📍 Bangalore (12.9716, 77.5946)</option>
+                                <option value="23.2599,77.4126">📍 Indore (23.2599, 77.4126)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Radius (km)</label>
+                            <input type="number" id="radiusInput" value="50" min="1" max="200" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-light); border-radius: 0.5rem;">
+                        </div>
+                    </div>
+                    <button onclick="searchNearby()" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Search Nearby Crops</button>
+                </div>
+            </div>
+
+            <div id="nearbyResults" class="grid grid-2">
+                <p style="grid-column: 1/-1; text-align: center; color: var(--secondary-gray);">Select a location and search to see crops nearby</p>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 CropKart. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+    <script>
+        async function searchNearby() {
+            const location = document.getElementById('locationSelect').value;
+            const radius = document.getElementById('radiusInput').value;
+
+            if (!location) {
+                showAlert('Please select a location', 'error');
+                return;
+            }
+
+            const [lat, lng] = location.split(',');
+
+            try {
+                const response = await apiCall('GET', `/crops/nearby?latitude=${lat}&longitude=${lng}&radius=${radius}`);
+                const crops = response.crops || [];
+
+                if (crops.length === 0) {
+                    document.getElementById('nearbyResults').innerHTML = '<p style="grid-column: 1/-1; text-align: center;">No crops found in this radius.</p>';
+                    return;
+                }
+
+                document.getElementById('nearbyResults').innerHTML = crops.map(crop => `
+                    <div class="card crop-card">
+                        <div style="background-color: var(--primary-light); height: 200px; display: flex; align-items: center; justify-content: center; font-size: 3rem;">
+                            🌾
+                        </div>
+                        <div class="crop-info">
+                            <div class="crop-name">${crop.name}</div>
+                            <div class="crop-details">
+                                <div class="crop-detail">👨‍🌾 ${crop.farmerName}</div>
+                                <div class="crop-detail">📍 ${crop.location}</div>
+                                <div class="crop-detail">📏 ${crop.distance.toFixed(1)} km away</div>
+                                <div class="crop-detail">📦 ${crop.quantity} kg available</div>
+                            </div>
+                            <div class="crop-price">₹${crop.price}/kg</div>
+                            <div class="crop-actions">
+                                <a href="crop-detail.html?id=${crop.id}" class="btn btn-primary">View & Request</a>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                showAlert(`Found ${crops.length} crops nearby!`, 'success');
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        }
+
+        function toggleAuthMenu() {
+            const menu = document.getElementById('authMenu');
+            menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+        }
+    </script>
+</body>
+</html>
