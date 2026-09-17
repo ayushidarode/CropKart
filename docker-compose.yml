@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cropkart-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cropkart
+      POSTGRES_USER: cropkart
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cropkart123}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cropkart -d cropkart"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cropkart-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://cropkart:${POSTGRES_PASSWORD:-cropkart123}@postgres:5432/cropkart
+      LANGFLOW_URL: ${LANGFLOW_DOCKER_URL:-http://host.docker.internal:7860}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  postgres_data:
+    name: cropkart_postgres_data

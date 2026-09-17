@@ -1,11 +1,34 @@
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+*.db
+*.sqlite3
+
+# Node.js
 node_modules/
 dist/
 build/
-.env
-.env.local
-.DS_Store
+
+# Docker and volumes
+postgres_data/
+langflow_data/
+
+# Logs and IDE
 *.log
 .vscode/
 .idea/
+.DS_Store
+
+# Uploads
 public/uploads/*
 !public/uploads/.gitkeep
