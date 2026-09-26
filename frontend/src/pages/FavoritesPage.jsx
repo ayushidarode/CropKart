@@ -1,80 +1,93 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { favoritesAPI } from '../api';
-import CropCard from '../components/CropCard';
+import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Heart, Store, ArrowRight } from 'lucide-react';
+import AppShell from '../components/layout/AppShell';
+import CropCard from '../components/ui/CropCard';
+import Button from '../components/ui/Button';
+import { useApp } from '../context/AppContext';
 
-function FavoritesPage() {
-  const [favorites, setFavorites] = useState({ crops: [], farmers: [] });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+export default function FavoritesPage() {
+  const navigate = useNavigate();
+  const {
+    currentUser,
+    currentRole,
+    switchRole,
+    crops,
+    favorites,
+    toggleFavorite,
+    notifications,
+    markAllNotificationsRead,
+    language,
+    setLanguage,
+    searchQuery,
+    setSearchQuery,
+  } = useApp();
 
-  const loadFavorites = async () => {
-    try {
-      const response = await favoritesAPI.getAll();
-      setFavorites(response.data);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Unable to load favorites');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadFavorites();
-  }, []);
-
-  if (loading) return <div className="skeleton-card tall"></div>;
+  const favoriteCrops = crops.filter((crop) => favorites.includes(crop.id));
 
   return (
-    <div className="dashboard">
-      <section className="page-hero compact">
-        <p className="eyebrow">Saved shortlist</p>
-        <h1>My Favorites</h1>
-        <p>Saved crops and farmers for quick repeat buying decisions.</p>
-      </section>
-
-      {error && <div className="alert alert-error">{error}</div>}
-
-      <section className="content-section">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Saved crops</p>
-            <h2>{favorites.crops.length} crop lots</h2>
+    <AppShell
+      user={currentUser}
+      currentRole={currentRole}
+      onSwitchRole={switchRole}
+      notifications={notifications}
+      onMarkAllNotificationsRead={markAllNotificationsRead}
+      language={language}
+      setLanguage={setLanguage}
+      searchQuery={searchQuery}
+      setSearchQuery={setSearchQuery}
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider text-terracotta-600 bg-terracotta-100 px-2.5 py-0.5 rounded-pill">
+              Procurement Watchlist
+            </span>
           </div>
+          <h1 className="font-display font-bold text-2xl sm:text-3xl text-forest-900">
+            Saved Produce & Lots ({favoriteCrops.length})
+          </h1>
+          <p className="text-xs sm:text-sm text-ink-500">
+            Monitor real-time price updates and inventory changes for your shortlisted harvest lots.
+          </p>
         </div>
-        {favorites.crops.length === 0 ? (
-          <div className="empty-state compact"><p>No crops saved yet.</p></div>
-        ) : (
-          <div className="grid grid-3">
-            {favorites.crops.map((crop) => <CropCard key={crop.id} crop={crop} />)}
-          </div>
-        )}
-      </section>
 
-      <section className="content-section">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Saved farmers</p>
-            <h2>{favorites.farmers.length} farms</h2>
-          </div>
+        <Link to="/marketplace">
+          <Button variant="secondary" size="sm" icon={Store}>
+            Browse More Crops
+          </Button>
+        </Link>
+      </div>
+
+      {favoriteCrops.length === 0 ? (
+        <div className="bg-surface-0 border border-line-200 rounded-card p-12 text-center text-ink-500">
+          <Heart className="w-12 h-12 text-line-200 mx-auto mb-3" />
+          <h3 className="font-display font-bold text-lg text-forest-900 mb-1">
+            Your Watchlist is Empty
+          </h3>
+          <p className="text-xs text-ink-400 mb-4 max-w-sm mx-auto">
+            Click the heart icon on any crop in the marketplace to monitor price drops and seller availability.
+          </p>
+          <Link to="/marketplace">
+            <Button variant="solid-forest" size="md">
+              Go to Marketplace
+            </Button>
+          </Link>
         </div>
-        {favorites.farmers.length === 0 ? (
-          <div className="empty-state compact"><p>No farmers saved yet.</p></div>
-        ) : (
-          <div className="grid grid-3">
-            {favorites.farmers.map((farmer) => (
-              <article key={farmer.id} className="listing-mini-card">
-                <h4>{farmer.farmName || farmer.name}</h4>
-                <p>{farmer.location}</p>
-                <strong>{farmer.averageRating || 0} average rating</strong>
-                <Link to={`/farmers/${farmer.id}`} className="btn btn-secondary">Open Profile</Link>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
-    </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {favoriteCrops.map((crop) => (
+            <CropCard
+              key={crop.id}
+              crop={crop}
+              isFavorite={true}
+              onToggleFavorite={toggleFavorite}
+              onSelect={() => navigate(`/crop/${crop.id}`)}
+              onMakeOffer={() => navigate(`/crop/${crop.id}`)}
+            />
+          ))}
+        </div>
+      )}
+    </AppShell>
   );
 }
-
-export default FavoritesPage;

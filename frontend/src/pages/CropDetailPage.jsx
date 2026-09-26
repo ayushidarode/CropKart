@@ -1,284 +1,315 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { cropsAPI, marketPricesAPI, purchaseRequestsAPI } from '../api';
-import { useAuth } from '../AuthContext';
-import AvailabilityBadge from '../components/AvailabilityBadge';
-import NegotiationChat from '../components/NegotiationChat';
-import PriceComparisonChart from '../components/PriceComparisonChart';
+import React, { useState } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import {
+  ArrowLeft,
+  MapPin,
+  ShieldCheck,
+  Wheat,
+  Clock,
+  Truck,
+  CheckCircle2,
+  Calendar,
+  Share2,
+  Heart,
+  Sparkles,
+  PhoneCall,
+  Check,
+} from 'lucide-react';
+import AppShell from '../components/layout/AppShell';
+import StatusPill from '../components/ui/StatusPill';
+import Button from '../components/ui/Button';
+import { useApp } from '../context/AppContext';
 
-function CropDetailPage() {
+export default function CropDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [crop, setCrop] = useState(null);
-  const [comparison, setComparison] = useState(null);
-  const [buyerRequests, setBuyerRequests] = useState([]);
-  const [activePhoto, setActivePhoto] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [activeSpecTab, setActiveSpecTab] = useState('specs');
-  const [bulkQuantity, setBulkQuantity] = useState('');
-  const [bulkPrice, setBulkPrice] = useState('');
-  const [sampleMessage, setSampleMessage] = useState('Please send a quality-check sample before bulk confirmation.');
-  const [bulkMessage, setBulkMessage] = useState('Ready for bulk order after final rate confirmation.');
-  const [submitting, setSubmitting] = useState('');
-  const [success, setSuccess] = useState('');
-  const [error, setError] = useState('');
+  const {
+    currentUser,
+    currentRole,
+    switchRole,
+    crops,
+    makeOffer,
+    favorites,
+    toggleFavorite,
+    notifications,
+    markAllNotificationsRead,
+    language,
+    setLanguage,
+    searchQuery,
+    setSearchQuery,
+  } = useApp();
 
-  const loadBuyerRequests = async () => {
-    if (user?.role !== 'buyer') return;
-    const response = await purchaseRequestsAPI.getAll();
-    setBuyerRequests(response.data.filter((request) => request.cropId === id));
+  const crop = crops.find((c) => c.id === id) || crops[0];
+
+  const [quantity, setQuantity] = useState(100);
+  const [offerPrice, setOfferPrice] = useState(crop.price);
+  const [offerNote, setOfferNote] = useState('');
+  const [offerSuccess, setOfferSuccess] = useState(false);
+
+  const isFav = favorites.includes(crop.id);
+
+  const handleOfferSubmit = (e) => {
+    e.preventDefault();
+    makeOffer({
+      crop,
+      offeredPrice: offerPrice,
+      quantity,
+      message: offerNote || 'Interested in immediate purchase. Ready to fund escrow.',
+    });
+    setOfferSuccess(true);
+    setTimeout(() => {
+      navigate('/orders');
+    }, 1200);
   };
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const cropResponse = await cropsAPI.getCropById(id);
-        setCrop(cropResponse.data);
-        setActivePhoto(cropResponse.data.photos?.[0] || cropResponse.data.image);
-        setBulkPrice(cropResponse.data.expectedPrice);
-        setBulkQuantity(Math.min(100, cropResponse.data.quantity || 100));
-
-        const comparisonResponse = await marketPricesAPI.compare(id);
-        setComparison(comparisonResponse.data);
-        await loadBuyerRequests();
-      } catch (err) {
-        setError(err.response?.data?.error || 'Crop not found');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [id, user?.id]);
-
-  const acceptedSample = useMemo(() => (
-    buyerRequests.find((request) => request.orderType === 'sample' && request.status === 'accepted')
-  ), [buyerRequests]);
-
-  const satisfiedSample = useMemo(() => (
-    buyerRequests.find((request) => request.orderType === 'sample' && request.sampleApproved)
-  ), [buyerRequests]);
-
-  const requireBuyer = () => {
-    if (!user) {
-      navigate('/login');
-      return false;
-    }
-    if (user.role !== 'buyer') {
-      setError('Only buyers can place sample or bulk orders.');
-      return false;
-    }
-    return true;
-  };
-
-  const createOrder = async (orderType) => {
-    if (!requireBuyer()) return;
-
-    setSubmitting(orderType);
-    setError('');
-    setSuccess('');
-    try {
-      await purchaseRequestsAPI.create({
-        cropId: crop.id,
-        quantity: orderType === 'sample' ? 10 : Number(bulkQuantity),
-        offeredPrice: orderType === 'sample' ? crop.expectedPrice : Number(bulkPrice),
-        orderType,
-        message: orderType === 'sample' ? sampleMessage : bulkMessage
-      });
-      setSuccess(orderType === 'sample'
-        ? 'Sample request sent. The farmer can accept or reject it from the dashboard.'
-        : 'Bulk order request sent to the farmer.');
-      await loadBuyerRequests();
-    } catch (err) {
-      setError(err.response?.data?.error || 'Unable to place request');
-    } finally {
-      setSubmitting('');
-    }
-  };
-
-  const markSampleSatisfied = async () => {
-    if (!acceptedSample) return;
-    setSubmitting('sampleApproved');
-    setError('');
-    try {
-      await purchaseRequestsAPI.update(acceptedSample.id, { sampleApproved: true });
-      setSuccess('Sample marked satisfied. Bulk order is now ready to proceed.');
-      await loadBuyerRequests();
-    } catch (err) {
-      setError(err.response?.data?.error || 'Unable to update sample status');
-    } finally {
-      setSubmitting('');
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="detail-shell">
-        <div className="skeleton-card tall"></div>
-        <div className="skeleton-card tall"></div>
-      </div>
-    );
-  }
-
-  if (!crop) {
-    return <div className="alert alert-error">{error || 'Crop not found'}</div>;
-  }
-
-  const photos = crop.photos?.length ? crop.photos : [crop.image];
 
   return (
-    <div className="crop-detail-page">
-      <button className="btn btn-secondary" onClick={() => navigate('/marketplace')}>Back to Marketplace</button>
+    <AppShell
+      user={currentUser}
+      currentRole={currentRole}
+      onSwitchRole={switchRole}
+      notifications={notifications}
+      onMarkAllNotificationsRead={markAllNotificationsRead}
+      language={language}
+      setLanguage={setLanguage}
+      searchQuery={searchQuery}
+      setSearchQuery={setSearchQuery}
+    >
+      {/* Back button link */}
+      <div className="mb-6">
+        <Link
+          to="/marketplace"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-500 hover:text-forest-700 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Marketplace</span>
+        </Link>
+      </div>
 
-      {error && <div className="alert alert-error mt-2">{error}</div>}
-      {success && <div className="alert alert-success mt-2">{success}</div>}
-
-      <section className="detail-shell mt-3">
-        <div className="gallery-panel">
-          <div className="product-image-main">
-            {activePhoto ? (
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Column (7 cols): Images & Crop Specifications */}
+        <div className="lg:col-span-7 space-y-6">
+          {/* Main Photo Card */}
+          <div className="bg-surface-0 border border-line-200 rounded-hero overflow-hidden shadow-ambient">
+            <div className="relative aspect-[16/10] w-full bg-sage-100">
               <img
-                src={activePhoto}
+                src={crop.imageUrl}
                 alt={crop.name}
-                onError={(event) => {
-                  event.currentTarget.style.display = 'none';
-                }}
+                className="w-full h-full object-cover"
               />
-            ) : null}
-            <div className="image-fallback large">{crop.name.slice(0, 1)}</div>
-          </div>
-          <div className="thumb-row">
-            {photos.map((photo, index) => (
+              <div className="absolute top-4 left-4 flex gap-2">
+                <StatusPill status="grade-a" label={crop.grade} />
+                <StatusPill status={crop.status} />
+              </div>
+
               <button
-                key={`${photo}-${index}`}
-                className={photo === activePhoto ? 'active' : ''}
-                onClick={() => setActivePhoto(photo)}
+                onClick={() => toggleFavorite(crop.id)}
+                className="absolute top-4 right-4 w-10 h-10 rounded-full bg-surface-0/90 backdrop-blur-sm flex items-center justify-center text-ink-600 hover:text-terracotta-500 shadow-sm"
               >
-                Lot {index + 1}
+                <Heart className={`w-5 h-5 ${isFav ? 'fill-terracotta-500 text-terracotta-500' : ''}`} />
               </button>
-            ))}
-          </div>
-        </div>
 
-        <div className="product-summary">
-          <div className="product-title">
-            <div>
-              <p className="eyebrow">{crop.category} / {crop.variety}</p>
-              <h1>{crop.name}</h1>
-            </div>
-            <AvailabilityBadge crop={crop} />
-          </div>
-
-          <div className="product-price">Rs.{crop.expectedPrice}<span>/{crop.priceUnit || 'quintal'}</span></div>
-          <p className="product-description">{crop.description}</p>
-
-          <div className="quick-spec-grid">
-            <div><span>Grade</span><strong>{crop.qualityGrade}</strong></div>
-            <div><span>Harvest</span><strong>{new Date(crop.harvestDate).toLocaleDateString()}</strong></div>
-            <div><span>Moisture</span><strong>{crop.moisturePercent}%</strong></div>
-            <div><span>Storage</span><strong>{crop.storageType}</strong></div>
-          </div>
-
-          <Link to={`/farmers/${crop.farmerId}`} className="farmer-profile-strip">
-            <div>
-              <span>Seller</span>
-              <strong>{crop.farmName || crop.farmerName}</strong>
-              <small>{crop.farmLocation || crop.location}</small>
-            </div>
-            <span>View public profile</span>
-          </Link>
-        </div>
-      </section>
-
-      <section className="detail-grid mt-4">
-        <div className="spec-panel">
-          <div className="tabs">
-            <button className={`tab-button ${activeSpecTab === 'specs' ? 'active' : ''}`} onClick={() => setActiveSpecTab('specs')}>
-              Crop Info / Specifications
-            </button>
-            <button className={`tab-button ${activeSpecTab === 'quality' ? 'active' : ''}`} onClick={() => setActiveSpecTab('quality')}>
-              Quality & Handling
-            </button>
-          </div>
-
-          {activeSpecTab === 'specs' && (
-            <div className="spec-list">
-              <div><span>Current available quantity</span><strong>{crop.quantity} {crop.unit}</strong></div>
-              <div><span>Harvest date</span><strong>{new Date(crop.harvestDate).toLocaleDateString()}</strong></div>
-              <div><span>Grade / quality</span><strong>{crop.qualityGrade}</strong></div>
-              <div><span>Organic status</span><strong>{crop.organic ? 'Organic lot' : 'Conventional lot'}</strong></div>
-              <div className="wide">
-                <span>Fertilizers / pesticides used</span>
-                <strong>{crop.fertilizersUsed?.length ? crop.fertilizersUsed.join(', ') : 'Not specified'}</strong>
+              <div className="absolute bottom-4 left-4 bg-forest-900/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-pill text-xs font-semibold">
+                Available Lot: {crop.quantity} {crop.quantityUnit}
               </div>
             </div>
-          )}
 
-          {activeSpecTab === 'quality' && (
-            <div className="spec-list">
-              <div><span>Storage type</span><strong>{crop.storageType}</strong></div>
-              <div><span>Moisture</span><strong>{crop.moisturePercent}%</strong></div>
-              <div><span>Farm location</span><strong>{crop.farmLocation || crop.location}</strong></div>
-              <div><span>Coordinates</span><strong>{crop.coordinates.lat}, {crop.coordinates.lng}</strong></div>
+            <div className="p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
+                <div>
+                  <h1 className="font-display font-bold text-2xl sm:text-3xl text-forest-900">
+                    {crop.name}
+                  </h1>
+                  <span className="text-xs text-soil-600 uppercase font-semibold tracking-wider">
+                    {crop.variety} • Category: {crop.category}
+                  </span>
+                </div>
+
+                <div className="text-left sm:text-right">
+                  <span className="text-[10px] uppercase font-bold text-ink-400 block">Wholesale Rate</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl sm:text-3xl font-bold text-forest-900 tabular-nums">
+                      ₹{Number(crop.price).toLocaleString('en-IN')}
+                    </span>
+                    <span className="text-xs text-ink-500">/{crop.unit}</span>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-xs sm:text-sm text-ink-600 leading-relaxed mt-4">
+                {crop.description}
+              </p>
+
+              {/* Lab Specification Pills */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-line-100 text-xs">
+                <div className="p-3 bg-cream-50 rounded-xl border border-line-100">
+                  <span className="text-[10px] uppercase font-bold text-ink-400 block">Moisture Content</span>
+                  <span className="font-bold text-forest-900">{crop.moisture || '10.5%'}</span>
+                </div>
+                <div className="p-3 bg-cream-50 rounded-xl border border-line-100">
+                  <span className="text-[10px] uppercase font-bold text-ink-400 block">Harvest Date</span>
+                  <span className="font-bold text-forest-900">{crop.harvestDate}</span>
+                </div>
+                <div className="p-3 bg-cream-50 rounded-xl border border-line-100">
+                  <span className="text-[10px] uppercase font-bold text-ink-400 block">Quality Standard</span>
+                  <span className="font-bold text-forest-900">{crop.grade}</span>
+                </div>
+                <div className="p-3 bg-cream-50 rounded-xl border border-line-100">
+                  <span className="text-[10px] uppercase font-bold text-ink-400 block">Inspection</span>
+                  <span className="font-bold text-forest-700">Lab Passed ✓</span>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
+
+          {/* Farmer Card */}
+          <div className="bg-surface-0 border border-line-200 rounded-card p-5 shadow-ambient flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-forest-700 text-lime-300 flex items-center justify-center font-display font-bold text-lg">
+                {crop.farmerName[0]}
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5 font-bold text-forest-900 text-sm">
+                  <span>{crop.farmerName}</span>
+                  <ShieldCheck className="w-4 h-4 text-forest-600" />
+                </div>
+                <p className="text-xs text-ink-500 flex items-center gap-1 mt-0.5">
+                  <MapPin className="w-3.5 h-3.5 text-steel-500" />
+                  {crop.location}
+                </p>
+              </div>
+            </div>
+
+            <div className="text-right">
+              <span className="text-xs font-semibold text-forest-700 block">Kisan Verified</span>
+              <span className="text-[11px] text-ink-400">Direct Farm Gate</span>
+            </div>
+          </div>
         </div>
 
-        <PriceComparisonChart comparison={comparison} />
-      </section>
-
-      <section className="detail-grid mt-4">
-        <NegotiationChat crop={crop} />
-
-        <div className="order-panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Procurement actions</p>
-              <h3>Sample and Bulk Orders</h3>
+        {/* Right Column (5 cols): Make Offer / Order Box (§5.5) */}
+        <div className="lg:col-span-5 space-y-6">
+          <div className="bg-surface-0 border border-line-200 rounded-hero p-6 shadow-ambient">
+            <div className="pb-4 border-b border-line-100 mb-5">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-forest-700 bg-sage-100 px-2.5 py-0.5 rounded-pill">
+                Direct B2B Procurement
+              </span>
+              <h2 className="font-display font-bold text-xl text-forest-900 mt-2">
+                Make Offer or Buy Now
+              </h2>
+              <p className="text-xs text-ink-500 mt-0.5">
+                Propose your price per {crop.unit} or purchase at listed wholesale rate.
+              </p>
             </div>
-          </div>
 
-          <div className="order-card sample">
-            <div>
-              <h4>Order Sample</h4>
-              <p>Fixed 10kg quality-check request before committing to volume.</p>
-            </div>
-            <textarea value={sampleMessage} onChange={(event) => setSampleMessage(event.target.value)} />
-            <button className="btn btn-secondary" disabled={submitting === 'sample'} onClick={() => createOrder('sample')}>
-              {submitting === 'sample' ? 'Sending Sample' : 'Order Sample'}
-            </button>
+            <form onSubmit={handleOfferSubmit} className="space-y-4 text-xs sm:text-sm">
+              {/* Quantity Stepper */}
+              <div>
+                <label className="block text-ink-700 font-semibold mb-1 text-xs">
+                  Procurement Quantity ({crop.unit})
+                </label>
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((q) => Math.max(10, q - 20))}
+                    className="w-11 h-11 rounded-l-xl bg-sage-100 hover:bg-sage-200 text-forest-900 font-bold border border-line-200 text-base"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    max={crop.quantity}
+                    value={quantity}
+                    onChange={(e) => setQuantity(Number(e.target.value))}
+                    className="w-full text-center bg-cream-50/70 border-y border-line-200 py-2.5 text-ink-900 font-bold text-base tabular-nums focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((q) => Math.min(crop.quantity, q + 20))}
+                    className="w-11 h-11 rounded-r-xl bg-sage-100 hover:bg-sage-200 text-forest-900 font-bold border border-line-200 text-base"
+                  >
+                    +
+                  </button>
+                </div>
+                <span className="text-[11px] text-ink-400 mt-1 block">
+                  Available in stock: {crop.quantity} {crop.quantityUnit}
+                </span>
+              </div>
 
-            {acceptedSample && !satisfiedSample && (
-              <button className="btn btn-primary" disabled={submitting === 'sampleApproved'} onClick={markSampleSatisfied}>
-                Mark Sample Satisfied
-              </button>
-            )}
-          </div>
+              {/* Offer Price Input */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-ink-700 font-semibold text-xs">
+                    Your Bid Price (₹/{crop.unit})
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setOfferPrice(crop.price)}
+                    className="text-[11px] text-forest-700 hover:underline font-semibold"
+                  >
+                    Use Listed (₹{crop.price})
+                  </button>
+                </div>
+                <input
+                  type="number"
+                  required
+                  value={offerPrice}
+                  onChange={(e) => setOfferPrice(Number(e.target.value))}
+                  className="w-full bg-cream-50/70 border border-line-200 rounded-xl px-4 py-2.5 text-ink-900 font-bold text-base tabular-nums focus:outline-none focus:ring-2 focus:ring-forest-700"
+                />
+              </div>
 
-          <div className="order-card bulk">
-            <div>
-              <h4>Place Bulk Order</h4>
-              <p>{satisfiedSample ? 'Sample approved. Bulk form is ready.' : 'You can place a direct bulk request or complete sample approval first.'}</p>
-            </div>
-            <div className="order-grid">
-              <label>
-                Quantity ({crop.unit})
-                <input type="number" min="1" max={crop.quantity} value={bulkQuantity} onChange={(event) => setBulkQuantity(event.target.value)} />
-              </label>
-              <label>
-                Price (Rs./{crop.priceUnit || 'quintal'})
-                <input type="number" value={bulkPrice} onChange={(event) => setBulkPrice(event.target.value)} />
-              </label>
-            </div>
-            <textarea value={bulkMessage} onChange={(event) => setBulkMessage(event.target.value)} />
-            <button className="btn btn-primary" disabled={submitting === 'bulk'} onClick={() => createOrder('bulk')}>
-              {submitting === 'bulk' ? 'Placing Bulk Order' : satisfiedSample ? 'Proceed to Bulk Order' : 'Place Bulk Order'}
-            </button>
+              {/* Note / Message */}
+              <div>
+                <label className="block text-ink-700 font-semibold mb-1 text-xs">
+                  Buyer Procurement Note (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  value={offerNote}
+                  onChange={(e) => setOfferNote(e.target.value)}
+                  placeholder="e.g. Need delivery to Vashi APMC by tomorrow evening..."
+                  className="w-full bg-cream-50/70 border border-line-200 rounded-xl px-4 py-2 text-ink-900 focus:outline-none focus:ring-2 focus:ring-forest-700"
+                />
+              </div>
+
+              {/* Escrow Settlement Total */}
+              <div className="p-4 bg-lime-50/70 border border-lime-200 rounded-2xl">
+                <span className="text-[10px] uppercase font-bold text-forest-800 block">Total Escrow Value</span>
+                <div className="flex items-baseline justify-between mt-1">
+                  <span className="text-2xl font-bold text-forest-900 tabular-nums">
+                    ₹{Number(offerPrice * quantity).toLocaleString('en-IN')}
+                  </span>
+                  <span className="text-xs text-forest-700 font-semibold">
+                    100% Protected
+                  </span>
+                </div>
+              </div>
+
+              {offerSuccess ? (
+                <div className="p-3.5 bg-forest-100 border border-forest-200 text-forest-800 rounded-xl text-xs font-semibold text-center flex items-center justify-center gap-2">
+                  <Check className="w-4 h-4 text-forest-600 stroke-[3]" />
+                  <span>Offer Submitted! Redirecting to orders...</span>
+                </div>
+              ) : (
+                <div className="space-y-2 pt-2">
+                  <Button
+                    type="submit"
+                    variant="solid-forest"
+                    size="lg"
+                    className="w-full py-3.5 text-sm font-bold shadow-ambient"
+                  >
+                    Submit Offer / Buy Now
+                  </Button>
+                  <p className="text-[10px] text-ink-400 text-center">
+                    Farmer will receive an instant notification to accept or counter-bid.
+                  </p>
+                </div>
+              )}
+            </form>
           </div>
         </div>
-      </section>
-    </div>
+      </div>
+    </AppShell>
   );
 }
-
-export default CropDetailPage;
