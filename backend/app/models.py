@@ -12,7 +12,7 @@ Defines simple and extensible marketplace models for:
 - MarketplaceNotification (alerts and notifications for users)
 """
 
-from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 
 try:
@@ -161,3 +161,92 @@ class MarketplaceNotification(Base):
 
     # Relationships
     user = relationship("User", back_populates="notifications")
+
+
+# =====================================================================
+# Agricultural Market Data Collection Models (Supabase Storage)
+# =====================================================================
+
+class DataSource(Base):
+    """
+    Tracks external government or open data sources.
+    WHY: Keeps provenance record of where agricultural data originated.
+    """
+    __tablename__ = "data_sources"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False, unique=True, index=True)
+    source_url = Column(Text, nullable=False)
+    source_type = Column(String(50), nullable=False, default="csv")
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    # Relationships
+    market_records = relationship("AgriculturalMarketData", back_populates="source")
+
+
+class Grain(Base):
+    """
+    Catalog of distinct grains and agricultural commodities collected.
+    WHY: Normalizes commodity names like Wheat, Rice, Maize.
+    """
+    __tablename__ = "grains"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False, unique=True, index=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    # Relationships
+    market_records = relationship("AgriculturalMarketData", back_populates="grain")
+
+
+class Location(Base):
+    """
+    Geographic market locations (State, District, Mandi/Market).
+    WHY: Normalizes location hierarchy and prevents duplication.
+    """
+    __tablename__ = "locations"
+    __table_args__ = (
+        UniqueConstraint("state", "district", "market", name="uq_location_state_district_market"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    state = Column(String(100), nullable=False, index=True)
+    district = Column(String(100), nullable=False, index=True)
+    market = Column(String(100), nullable=False, index=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    # Relationships
+    market_records = relationship("AgriculturalMarketData", back_populates="location")
+
+
+class AgriculturalMarketData(Base):
+    """
+    Core normalized agricultural market records from government data feeds.
+    WHY: Stores daily mandi prices (min, max, modal) and arrival volumes.
+    Duplicate protection via unique constraint on (source_id, source_record_id).
+    """
+    __tablename__ = "agricultural_market_data"
+    __table_args__ = (
+        UniqueConstraint("source_id", "source_record_id", name="uq_source_record"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    source_id = Column(Integer, ForeignKey("data_sources.id"), nullable=False, index=True)
+    grain_id = Column(Integer, ForeignKey("grains.id"), nullable=False, index=True)
+    location_id = Column(Integer, ForeignKey("locations.id"), nullable=False, index=True)
+    record_date = Column(Date, nullable=False, index=True)
+    variety = Column(String(100), nullable=True)
+    arrival_quantity = Column(Float, nullable=True)
+    minimum_price = Column(Float, nullable=True)
+    maximum_price = Column(Float, nullable=True)
+    modal_price = Column(Float, nullable=True)
+    source_record_id = Column(String(64), nullable=False, index=True)
+    collected_at = Column(DateTime, server_default=func.now(), nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    source = relationship("DataSource", back_populates="market_records")
+    grain = relationship("Grain", back_populates="market_records")
+    location = relationship("Location", back_populates="market_records")
+
