@@ -119,7 +119,7 @@ export default function LanguageSelectionPage({ onContinueCustom }) {
       {/* ========================================================
           MAIN CONTENT CONTAINER (Centered, Mobile-First, Safe Area)
           ======================================================== */}
-      <main className="w-full max-w-lg mx-auto px-4 sm:px-6 pt-3 sm:pt-6 pb-6 md:pb-8 flex-1 flex flex-col items-center justify-start gap-2 sm:gap-3.5 relative z-10">
+      <main className="w-full max-w-lg mx-auto px-2.5 sm:px-6 pt-3 sm:pt-6 pb-6 md:pb-8 flex-1 flex flex-col items-center justify-start gap-2 sm:gap-3.5 relative z-10">
         
         {/* Top Section: Logo + Headings (§8) */}
         <div className="w-full flex flex-col items-center text-center">
@@ -141,7 +141,7 @@ export default function LanguageSelectionPage({ onContinueCustom }) {
 
           {/* Heading (§8) */}
           <div className="mt-2.5 sm:mt-3 animate-fade-in-up delay-100">
-            <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-amber-950 tracking-tight leading-tight">
+            <h1 className="font-display font-extrabold text-xl sm:text-2xl md:text-3xl text-amber-950 tracking-tight leading-tight px-2 break-words">
               Choose Your Language
             </h1>
 
@@ -160,7 +160,7 @@ export default function LanguageSelectionPage({ onContinueCustom }) {
         <section
           aria-label="Language selection options"
           role="radiogroup"
-          className="w-full mt-2 sm:mt-2.5 grid grid-cols-2 gap-2 sm:gap-2.5 max-h-[36vh] sm:max-h-[38vh] md:max-h-[32vh] lg:max-h-[38vh] overflow-y-auto pr-1 py-1 custom-scrollbar animate-fade-in-up delay-200"
+          className="w-full mt-2 sm:mt-2.5 grid grid-cols-2 gap-2 sm:gap-3 max-h-[46vh] sm:max-h-[50vh] md:max-h-[32vh] lg:max-h-[38vh] overflow-y-auto px-1.5 py-1.5 custom-scrollbar animate-fade-in-up delay-200"
         >
           {LANGUAGES.map((lang, index) => {
             const isSelected = selectedLanguage === lang.code;
@@ -178,7 +178,7 @@ export default function LanguageSelectionPage({ onContinueCustom }) {
                 onKeyDown={(e) => handleKeyDown(e, lang.code)}
                 style={{ animationDelay: `${index * 25}ms` }}
                 className={`
-                  relative text-left p-3 sm:p-3.5 rounded-2xl transition-all duration-200 ease-out outline-none select-none min-h-[64px] flex items-center justify-between gap-2
+                  relative text-left p-2.5 sm:p-3.5 rounded-2xl transition-all duration-200 ease-out outline-none select-none min-h-[60px] sm:min-h-[64px] min-w-0 flex items-center justify-between gap-1.5 sm:gap-2
                   focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-2
                   ${
                     isSelected
@@ -191,7 +191,7 @@ export default function LanguageSelectionPage({ onContinueCustom }) {
                 <div className="flex-1 min-w-0">
                   <span
                     className={`
-                      block font-bold text-base sm:text-lg tracking-tight leading-none truncate
+                      block font-bold text-sm sm:text-base md:text-lg tracking-tight leading-none truncate
                       ${isSelected ? 'text-white' : 'text-amber-950'}
                     `}
                   >
@@ -199,7 +199,7 @@ export default function LanguageSelectionPage({ onContinueCustom }) {
                   </span>
                   <span
                     className={`
-                      block text-xs font-medium mt-1 truncate
+                      block text-[11px] sm:text-xs font-medium mt-1 truncate
                       ${isSelected ? 'text-amber-200' : 'text-amber-700/80'}
                     `}
                   >
