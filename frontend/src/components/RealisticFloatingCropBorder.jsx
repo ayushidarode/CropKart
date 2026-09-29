@@ -34,172 +34,213 @@ export default function RealisticFloatingCropBorder() {
 
       {/* ========================================================
           1. TOP: GOLDEN CORN, WHEAT & RICE GRAINS (§7)
+          Entrance: Top (100ms) -> Idle Float (700ms)
           ======================================================== */}
       <div
-        className="absolute -top-12 sm:-top-16 left-1/2 -translate-x-1/2 w-48 sm:w-64 opacity-85 sm:opacity-90 animate-crop-breeze-1"
-        style={{ animationDuration: '6.8s', animationDelay: '0s' }}
+        aria-hidden="true"
+        className="absolute -top-12 sm:-top-16 left-1/2 -translate-x-1/2 w-48 sm:w-64 opacity-85 sm:opacity-90 pointer-events-none animate-crop-entrance-top"
+        style={{ animationDelay: '100ms' }}
       >
-        <img
-          src={cornWheatImg}
-          alt=""
-          className="w-full h-auto object-contain drop-shadow-[0_12px_22px_rgba(180,83,9,0.2)]"
-        />
+        <div
+          className="w-full h-full animate-crop-breeze-1"
+          style={{ animationDelay: '700ms' }}
+        >
+          <img
+            src={cornWheatImg}
+            alt=""
+            className="w-full h-auto object-contain drop-shadow-[0_12px_22px_rgba(180,83,9,0.2)]"
+          />
+        </div>
       </div>
 
       {/* ========================================================
           2. TOP-LEFT: LARGE VINE TOMATOES, PURPLE BRINJAL & CHILLIES (§7)
+          Entrance: Top-Left (220ms) -> Idle Float (820ms)
           ======================================================== */}
       <div
-        className="absolute -top-10 -left-10 sm:-top-12 sm:-left-12 w-36 sm:w-56 opacity-85 sm:opacity-95 animate-crop-breeze-2"
-        style={{ animationDuration: '7.5s', animationDelay: '0.6s' }}
+        aria-hidden="true"
+        className="absolute -top-10 -left-10 sm:-top-12 sm:-left-12 w-36 sm:w-56 opacity-85 sm:opacity-95 pointer-events-none animate-crop-entrance-left"
+        style={{ animationDelay: '220ms' }}
       >
-        <img
-          src={tomatoBrinjalImg}
-          alt=""
-          className="w-full h-auto object-contain drop-shadow-[0_14px_24px_rgba(220,38,38,0.22)] transform -rotate-12"
-        />
+        <div
+          className="w-full h-full animate-crop-breeze-2"
+          style={{ animationDelay: '820ms' }}
+        >
+          <img
+            src={tomatoBrinjalImg}
+            alt=""
+            className="w-full h-auto object-contain drop-shadow-[0_14px_24px_rgba(220,38,38,0.22)] transform -rotate-12"
+          />
+        </div>
       </div>
 
       {/* ========================================================
           3. TOP-RIGHT: SAVOY CABBAGE, CARROTS & RED ONION (§7)
+          Entrance: Top-Right (340ms) -> Idle Float (940ms)
           ======================================================== */}
       <div
-        className="absolute -top-10 -right-10 sm:-top-12 sm:-right-12 w-36 sm:w-56 opacity-85 sm:opacity-95 animate-crop-breeze-3"
-        style={{ animationDuration: '6.4s', animationDelay: '1.2s' }}
+        aria-hidden="true"
+        className="absolute -top-10 -right-10 sm:-top-12 sm:-right-12 w-36 sm:w-56 opacity-85 sm:opacity-95 pointer-events-none animate-crop-entrance-right"
+        style={{ animationDelay: '340ms' }}
       >
-        <img
-          src={rootVeggiesImg}
-          alt=""
-          className="w-full h-auto object-contain drop-shadow-[0_14px_24px_rgba(234,88,12,0.2)] transform rotate-12 scale-x-[-1]"
-        />
+        <div
+          className="w-full h-full animate-crop-breeze-3"
+          style={{ animationDelay: '940ms' }}
+        >
+          <img
+            src={rootVeggiesImg}
+            alt=""
+            className="w-full h-auto object-contain drop-shadow-[0_14px_24px_rgba(234,88,12,0.2)] transform rotate-12 scale-x-[-1]"
+          />
+        </div>
       </div>
 
       {/* ========================================================
-          4. LEFT EDGE: LEAFY GREENS, SUGARCANE & CHILLIES (§7)
+          4A. LEFT EDGE (DESKTOP/TABLET): LEAFY GREENS, SUGARCANE & CHILLIES (§7)
+          Entrance: Left (460ms) -> Idle Float (1060ms)
           ======================================================== */}
       <div
-        className="hidden md:block absolute top-1/2 -translate-y-1/2 -left-14 w-48 opacity-75 animate-crop-breeze-1"
-        style={{ animationDuration: '8.2s', animationDelay: '1.6s' }}
+        aria-hidden="true"
+        className="hidden md:block absolute top-1/2 -translate-y-1/2 -left-14 w-48 opacity-75 pointer-events-none animate-crop-entrance-left"
+        style={{ animationDelay: '460ms' }}
       >
-        <img
-          src={leafyGreensImg}
-          alt=""
-          className="w-full h-auto object-contain drop-shadow-[0_12px_22px_rgba(34,197,94,0.2)] transform rotate-45"
-        />
+        <div
+          className="w-full h-full animate-crop-breeze-1"
+          style={{ animationDelay: '1060ms' }}
+        >
+          <img
+            src={leafyGreensImg}
+            alt=""
+            className="w-full h-auto object-contain drop-shadow-[0_12px_22px_rgba(34,197,94,0.2)] transform rotate-45"
+          />
+        </div>
       </div>
 
       {/* ========================================================
-          5. RIGHT EDGE: HARVEST DETAILS & WHEAT (§7)
+          4B. MOBILE-ONLY SMALL LEFT SIDE CROP (<768px)
+          Scale 60%, positioned high at y ~ 56px so it never overlaps language cards
+          Entrance: Left (280ms) -> Idle Float (880ms)
           ======================================================== */}
       <div
-        className="hidden md:block absolute top-1/2 -translate-y-1/2 -right-14 w-48 opacity-75 animate-crop-breeze-2"
-        style={{ animationDuration: '7.6s', animationDelay: '0.8s' }}
+        aria-hidden="true"
+        className="block md:hidden absolute top-14 -left-6 w-14 opacity-55 pointer-events-none scale-[0.6] origin-left animate-crop-entrance-left"
+        style={{ animationDelay: '280ms' }}
       >
-        <img
-          src={cornWheatImg}
-          alt=""
-          className="w-full h-auto object-contain drop-shadow-[0_12px_22px_rgba(217,119,6,0.2)] transform -rotate-45"
-        />
+        <div
+          className="w-full h-full animate-crop-breeze-1"
+          style={{ animationDelay: '880ms' }}
+        >
+          <img
+            src={leafyGreensImg}
+            alt=""
+            className="w-full h-auto object-contain drop-shadow-[0_10px_18px_rgba(34,197,94,0.18)] transform rotate-45"
+          />
+        </div>
+      </div>
+
+      {/* ========================================================
+          5A. RIGHT EDGE (DESKTOP/TABLET): HARVEST DETAILS & WHEAT (§7)
+          Entrance: Right (580ms) -> Idle Float (1180ms)
+          ======================================================== */}
+      <div
+        aria-hidden="true"
+        className="hidden md:block absolute top-1/2 -translate-y-1/2 -right-14 w-48 opacity-75 pointer-events-none animate-crop-entrance-right"
+        style={{ animationDelay: '580ms' }}
+      >
+        <div
+          className="w-full h-full animate-crop-breeze-2"
+          style={{ animationDelay: '1180ms' }}
+        >
+          <img
+            src={cornWheatImg}
+            alt=""
+            className="w-full h-auto object-contain drop-shadow-[0_12px_22px_rgba(217,119,6,0.2)] transform -rotate-45"
+          />
+        </div>
+      </div>
+
+      {/* ========================================================
+          5B. MOBILE-ONLY SMALL RIGHT SIDE CROP (<768px)
+          Scale 60%, positioned high at y ~ 56px so it never overlaps language cards
+          Entrance: Right (400ms) -> Idle Float (1000ms)
+          ======================================================== */}
+      <div
+        aria-hidden="true"
+        className="block md:hidden absolute top-14 -right-6 w-14 opacity-55 pointer-events-none scale-[0.6] origin-right animate-crop-entrance-right"
+        style={{ animationDelay: '400ms' }}
+      >
+        <div
+          className="w-full h-full animate-crop-breeze-2"
+          style={{ animationDelay: '1000ms' }}
+        >
+          <img
+            src={tomatoBrinjalImg}
+            alt=""
+            className="w-full h-auto object-contain drop-shadow-[0_10px_18px_rgba(220,38,38,0.18)] transform -rotate-45 scale-x-[-1]"
+          />
+        </div>
       </div>
 
       {/* ========================================================
           6. BOTTOM-LEFT: CARROTS, POTATO & CABBAGE (§7)
+          Entrance: Bottom (700ms) -> Idle Float (1300ms)
           ======================================================== */}
       <div
-        className="absolute -bottom-8 -left-8 sm:-bottom-12 sm:-left-10 w-36 sm:w-52 opacity-85 sm:opacity-95 animate-crop-breeze-3"
-        style={{ animationDuration: '7.2s', animationDelay: '0.4s' }}
+        aria-hidden="true"
+        className="absolute -bottom-8 -left-8 sm:-bottom-12 sm:-left-10 w-36 sm:w-52 opacity-85 sm:opacity-95 pointer-events-none animate-crop-entrance-bottom"
+        style={{ animationDelay: '700ms' }}
       >
-        <img
-          src={rootVeggiesImg}
-          alt=""
-          className="w-full h-auto object-contain drop-shadow-[0_16px_28px_rgba(120,53,15,0.25)] transform rotate-6"
-        />
+        <div
+          className="w-full h-full animate-crop-breeze-3"
+          style={{ animationDelay: '1300ms' }}
+        >
+          <img
+            src={rootVeggiesImg}
+            alt=""
+            className="w-full h-auto object-contain drop-shadow-[0_16px_28px_rgba(120,53,15,0.25)] transform rotate-6"
+          />
+        </div>
       </div>
 
       {/* ========================================================
-          7. BOTTOM-RIGHT / EDGE: CROPCART DELIVERY TRUCK VISUAL (§9, §10)
+          7. BOTTOM-RIGHT: CROPCART DELIVERY TRUCK VISUAL (§9, §10)
           The authentic green CropCart delivery truck with driver
-          Positioned as a supporting decorative element at the bottom-right,
-          harmonizing with crops and never covering central UI.
+          Entrance: Slide in once from right (500ms) -> Idle Float (1200ms)
           ======================================================== */}
       <div
         aria-hidden="true"
-        className="absolute -bottom-1 -right-1 sm:bottom-0 sm:right-0 md:bottom-0 md:right-2 w-32 sm:w-36 md:w-40 lg:w-44 max-w-[20vw] opacity-85 sm:opacity-95 animate-truck-float pointer-events-none z-0"
-        style={{ animationDuration: '8.5s', animationDelay: '0.2s' }}
+        className="absolute -bottom-1 -right-1 sm:bottom-0 sm:right-0 md:bottom-0 md:right-2 w-32 sm:w-36 md:w-40 lg:w-44 max-w-[20vw] opacity-85 sm:opacity-95 pointer-events-none z-0 animate-truck-entrance"
+        style={{ animationDelay: '500ms' }}
       >
-        <img
-          src={deliveryTruckImg}
-          alt="CropKart Delivery Truck"
-          className="w-full h-auto object-contain drop-shadow-[0_18px_32px_rgba(40,92,56,0.25)]"
-        />
+        <div
+          className="w-full h-full animate-truck-float"
+          style={{ animationDelay: '1200ms' }}
+        >
+          <img
+            src={deliveryTruckImg}
+            alt="CropKart Delivery Truck"
+            className="w-full h-auto object-contain drop-shadow-[0_18px_32px_rgba(40,92,56,0.25)]"
+          />
+        </div>
       </div>
 
-      {/* Bottom Corner Accent Crops around Truck */}
+      {/* Bottom Corner Accent Tomatoes near Truck */}
       <div
         aria-hidden="true"
-        className="hidden md:block absolute -bottom-6 right-36 md:right-48 w-24 opacity-60 pointer-events-none animate-crop-breeze-1 z-0"
-        style={{ animationDuration: '6.6s', animationDelay: '1.4s' }}
+        className="hidden md:block absolute -bottom-6 right-36 md:right-48 w-24 opacity-60 pointer-events-none z-0 animate-crop-entrance-bottom"
+        style={{ animationDelay: '800ms' }}
       >
-        <img
-          src={tomatoBrinjalImg}
-          alt=""
-          className="w-full h-auto object-contain drop-shadow-[0_10px_20px_rgba(220,38,38,0.2)] transform -rotate-12 scale-x-[-1]"
-        />
+        <div
+          className="w-full h-full animate-crop-breeze-1"
+          style={{ animationDelay: '1400ms' }}
+        >
+          <img
+            src={tomatoBrinjalImg}
+            alt=""
+            className="w-full h-auto object-contain drop-shadow-[0_10px_20px_rgba(220,38,38,0.2)] transform -rotate-12 scale-x-[-1]"
+          />
+        </div>
       </div>
-
-      {/* Subtle organic breeze & truck keyframe animations (§8) */}
-      <style>{`
-        @keyframes cropBreeze1 {
-          0%, 100% {
-            transform: translate3d(0, 0, 0) rotate(0deg);
-          }
-          33% {
-            transform: translate3d(4px, -6px, 0) rotate(-1.5deg);
-          }
-          66% {
-            transform: translate3d(-3px, -4px, 0) rotate(1.2deg);
-          }
-        }
-        @keyframes cropBreeze2 {
-          0%, 100% {
-            transform: translate3d(0, 0, 0) rotate(0deg);
-          }
-          40% {
-            transform: translate3d(-4px, -7px, 0) rotate(1.8deg);
-          }
-          75% {
-            transform: translate3d(3px, -3px, 0) rotate(-1deg);
-          }
-        }
-        @keyframes cropBreeze3 {
-          0%, 100% {
-            transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
-          }
-          50% {
-            transform: translate3d(3px, -8px, 0) scale(1.02) rotate(-1.5deg);
-          }
-        }
-        @keyframes truckFloat {
-          0%, 100% {
-            transform: translate3d(0, 0, 0);
-          }
-          50% {
-            transform: translate3d(-3px, -5px, 0);
-          }
-        }
-        .animate-crop-breeze-1 {
-          animation: cropBreeze1 infinite ease-in-out;
-        }
-        .animate-crop-breeze-2 {
-          animation: cropBreeze2 infinite ease-in-out;
-        }
-        .animate-crop-breeze-3 {
-          animation: cropBreeze3 infinite ease-in-out;
-        }
-        .animate-truck-float {
-          animation: truckFloat infinite ease-in-out;
-        }
-      `}</style>
     </div>
   );
 }

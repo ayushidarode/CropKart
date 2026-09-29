@@ -72,6 +72,120 @@
   animation: pulseSubtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* Crop Border & Truck Entrance Animations (Fix 5) */
+@keyframes cropEntranceTop {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -20px, 0) scale(0.6);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes cropEntranceBottom {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0) scale(0.6);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes cropEntranceLeft {
+  0% {
+    opacity: 0;
+    transform: translate3d(-20px, 0, 0) scale(0.6);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes cropEntranceRight {
+  0% {
+    opacity: 0;
+    transform: translate3d(20px, 0, 0) scale(0.6);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes truckEntranceSlide {
+  0% {
+    opacity: 0;
+    transform: translate3d(70px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes cropBreeze1 {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  33% { transform: translate3d(4px, -6px, 0) rotate(-1.5deg); }
+  66% { transform: translate3d(-3px, -4px, 0) rotate(1.2deg); }
+}
+
+@keyframes cropBreeze2 {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  40% { transform: translate3d(-4px, -7px, 0) rotate(1.8deg); }
+  75% { transform: translate3d(3px, -3px, 0) rotate(-1deg); }
+}
+
+@keyframes cropBreeze3 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
+  50% { transform: translate3d(3px, -8px, 0) scale(1.02) rotate(-1.5deg); }
+}
+
+@keyframes truckFloat {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(-3px, -5px, 0); }
+}
+
+.animate-crop-entrance-top {
+  animation: cropEntranceTop 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-crop-entrance-bottom {
+  animation: cropEntranceBottom 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-crop-entrance-left {
+  animation: cropEntranceLeft 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-crop-entrance-right {
+  animation: cropEntranceRight 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-truck-entrance {
+  animation: truckEntranceSlide 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-crop-breeze-1 {
+  animation: cropBreeze1 7s ease-in-out infinite;
+}
+
+.animate-crop-breeze-2 {
+  animation: cropBreeze2 7.5s ease-in-out infinite;
+}
+
+.animate-crop-breeze-3 {
+  animation: cropBreeze3 6.8s ease-in-out infinite;
+}
+
+.animate-truck-float {
+  animation: truckFloat 8s ease-in-out infinite;
+}
+
 /* Leaflet map custom override to match brand */
 .leaflet-container {
   width: 100%;
@@ -92,3 +206,4 @@
 .leaflet-popup-tip {
   background: #ffffff !important;
 }
+
