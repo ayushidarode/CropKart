@@ -6,7 +6,8 @@ Defines request and response validation schemas for:
 - CropSathi AI endpoints (Chat, Crop Match, Pricing, Demand Forecasting, Farming Advice)
 """
 
-from typing import List, Optional
+from typing import List, Optional, Union
+from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -17,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 # --- User ---
 class UserBase(BaseModel):
     name: str = Field(..., description="Full name of the user")
-    mobile: str = Field(..., description="Mobile number for contact and login")
+    mobile: Optional[str] = Field(None, description="Mobile number for contact and login")
     role: str = Field("farmer", description="Role: farmer, buyer, transporter, or admin")
     location: Optional[str] = Field(None, description="City or district location")
 
@@ -27,7 +28,7 @@ class UserCreate(UserBase):
 
 
 class UserResponse(UserBase):
-    id: int
+    id: Union[UUID, str]
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -36,6 +37,7 @@ class UserResponse(UserBase):
 class CropBase(BaseModel):
     name: str = Field(..., description="Crop commodity name, e.g., Wheat, Tomato")
     category: str = Field(..., description="Category, e.g., Grain, Vegetable, Fruit, Pulse")
+    farmer_id: Optional[Union[UUID, str]] = Field(None, description="Farmer user ID")
 
 
 class CropCreate(CropBase):
@@ -43,37 +45,39 @@ class CropCreate(CropBase):
 
 
 class CropResponse(CropBase):
-    id: int
+    id: Union[UUID, str]
 
     model_config = ConfigDict(from_attributes=True)
 
 
 # --- Buyer Requirement ---
 class BuyerRequirementBase(BaseModel):
-    buyer_id: int
-    crop_id: int
+    buyer_id: Union[UUID, str]
+    crop_id: Optional[Union[UUID, str]] = None
+    crop_name: Optional[str] = None
     quantity: float = Field(..., gt=0, description="Quantity needed in metric units/quintals")
     location: Optional[str] = None
     status: str = Field("active", description="active, fulfilled, or cancelled")
 
 
 class BuyerRequirementCreate(BaseModel):
-    buyer_id: int
-    crop_id: int
+    buyer_id: Union[UUID, str]
+    crop_id: Optional[Union[UUID, str]] = None
+    crop_name: Optional[str] = None
     quantity: float = Field(..., gt=0)
     location: Optional[str] = None
 
 
 class BuyerRequirementResponse(BuyerRequirementBase):
-    id: int
+    id: Union[UUID, str]
 
     model_config = ConfigDict(from_attributes=True)
 
 
 # --- Offer ---
 class OfferBase(BaseModel):
-    seller_id: int
-    crop_id: int
+    seller_id: Union[UUID, str]
+    crop_id: Union[UUID, str]
     quantity: float = Field(..., gt=0, description="Available quantity")
     price: float = Field(..., gt=0, description="Price per unit/quintal")
     location: Optional[str] = None
@@ -82,8 +86,8 @@ class OfferBase(BaseModel):
 
 
 class OfferCreate(BaseModel):
-    seller_id: int
-    crop_id: int
+    seller_id: Union[UUID, str]
+    crop_id: Union[UUID, str]
     quantity: float = Field(..., gt=0)
     price: float = Field(..., gt=0)
     location: Optional[str] = None
@@ -91,66 +95,73 @@ class OfferCreate(BaseModel):
 
 
 class OfferResponse(OfferBase):
-    id: int
+    id: Union[UUID, str]
 
     model_config = ConfigDict(from_attributes=True)
 
 
 # --- Order Item ---
 class OrderItemBase(BaseModel):
-    crop_id: int
-    seller_id: int
+    crop_id: Optional[Union[UUID, str]] = None
+    crop_name: Optional[str] = None
+    seller_id: Optional[Union[UUID, str]] = None
     quantity: float = Field(..., gt=0)
-    price: float = Field(..., gt=0)
+    price: Optional[float] = None
+    unit_price: Optional[float] = None
+    total_price: Optional[float] = None
 
 
 class OrderItemCreate(OrderItemBase):
-    order_id: Optional[int] = None
+    order_id: Optional[Union[UUID, str]] = None
 
 
 class OrderItemResponse(OrderItemBase):
-    id: int
-    order_id: int
+    id: Union[UUID, str]
+    order_id: Union[UUID, str]
 
     model_config = ConfigDict(from_attributes=True)
 
 
 # --- Transport ---
 class TransportBase(BaseModel):
-    order_id: int
+    order_id: Union[UUID, str]
     transporter_name: str
     vehicle_number: str
     status: str = Field("assigned", description="assigned, in_transit, or delivered")
 
 
 class TransportCreate(BaseModel):
-    order_id: int
+    order_id: Union[UUID, str]
     transporter_name: str
     vehicle_number: str
 
 
 class TransportResponse(TransportBase):
-    id: int
+    id: Union[UUID, str]
 
     model_config = ConfigDict(from_attributes=True)
 
 
 # --- Order ---
 class OrderBase(BaseModel):
-    buyer_id: int
+    buyer_id: Union[UUID, str]
+    farmer_id: Optional[Union[UUID, str]] = None
+    crop_id: Optional[Union[UUID, str]] = None
     status: str = Field("pending", description="pending, confirmed, in_transit, completed, cancelled")
     pickup_location: Optional[str] = None
     delivery_location: Optional[str] = None
 
 
 class OrderCreate(BaseModel):
-    buyer_id: int
+    buyer_id: Union[UUID, str]
+    farmer_id: Optional[Union[UUID, str]] = None
+    crop_id: Optional[Union[UUID, str]] = None
     pickup_location: Optional[str] = None
     delivery_location: Optional[str] = None
 
 
 class OrderResponse(OrderBase):
-    id: int
+    id: Union[UUID, str]
     order_items: List[OrderItemResponse] = []
     transports: List[TransportResponse] = []
 
@@ -159,20 +170,20 @@ class OrderResponse(OrderBase):
 
 # --- Marketplace Notification ---
 class MarketplaceNotificationBase(BaseModel):
-    user_id: int
+    user_id: Union[UUID, str]
     message: str
     type: str = Field("info", description="match, price_alert, order_update, or info")
     is_read: bool = False
 
 
 class MarketplaceNotificationCreate(BaseModel):
-    user_id: int
+    user_id: Union[UUID, str]
     message: str
     type: str = "info"
 
 
 class MarketplaceNotificationResponse(MarketplaceNotificationBase):
-    id: int
+    id: Union[UUID, str]
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -184,7 +195,7 @@ class MarketplaceNotificationResponse(MarketplaceNotificationBase):
 class ChatRequest(BaseModel):
     """Request schema for conversational CropSathi AI chat."""
     message: str = Field(..., description="User prompt or chat message")
-    user_id: Optional[int] = Field(None, description="Optional ID of the querying user")
+    user_id: Optional[Union[UUID, str]] = Field(None, description="Optional ID of the querying user")
     language: Optional[str] = Field("en", description="Language code (e.g., 'en', 'hi', 'mr')")
     role: Optional[str] = Field(None, description="User role (farmer, buyer, admin)")
 
@@ -268,16 +279,129 @@ sys.modules.setdefault("schemas.location", sys.modules[__name__])
 
 
 # =====================================================================
-# 4. Agricultural Data Collection & Storage Schemas
+# 4. Agricultural Data Collection & Storage Schemas (CEDA & Open Data)
 # =====================================================================
+
+class CedaCommodityItem(BaseModel):
+    """Commodity item returned by CEDA Agmarknet API."""
+    commodity_id: int
+    commodity_name: str
+
+
+class CedaCommoditiesResponse(BaseModel):
+    """Response containing list of CEDA agricultural commodities."""
+    success: bool = True
+    count: int
+    commodities: List[CedaCommodityItem]
+
+
+class CedaGeographyItem(BaseModel):
+    """State and district geography item returned by CEDA Agmarknet API."""
+    census_state_id: int
+    census_state_name: str
+    census_district_id: int
+    census_district_name: str
+
+
+class CedaGeographiesResponse(BaseModel):
+    """Response containing list of CEDA states and districts."""
+    success: bool = True
+    count: int
+    geographies: List[CedaGeographyItem]
+
+
+class CedaMarketsRequest(BaseModel):
+    """Request schema for retrieving markets for a commodity and geography."""
+    commodity_id: int = Field(..., description="CEDA commodity ID (e.g., 1 for Wheat)")
+    state_id: int = Field(..., description="CEDA state ID (e.g., 3 for Punjab)")
+    district_id: Optional[int] = Field(None, description="Optional CEDA district ID")
+    indicator: Optional[str] = Field("price", description="Indicator type: 'price' or 'quantity'")
+
+
+class CedaMarketItem(BaseModel):
+    """Market / Mandi item returned by CEDA Agmarknet API."""
+    market_id: int
+    market_name: str
+    census_state_id: Optional[int] = None
+    census_district_id: Optional[int] = None
+
+
+class CedaMarketsResponse(BaseModel):
+    """Response containing list of mandis for a commodity & location."""
+    success: bool = True
+    count: int
+    markets: List[CedaMarketItem]
+
+
+class CedaPriceItem(BaseModel):
+    """Daily mandi price record returned by CEDA Agmarknet API."""
+    date: str
+    commodity_id: int
+    census_state_id: int
+    census_district_id: Optional[int] = None
+    market_id: Optional[int] = None
+    min_price: Optional[float] = None
+    max_price: Optional[float] = None
+    modal_price: Optional[float] = None
+
+
+class CedaPricesRequest(BaseModel):
+    """Request schema for retrieving prices from CEDA Agmarknet API."""
+    commodity_id: int = Field(..., description="CEDA commodity ID")
+    state_id: int = Field(..., description="CEDA state ID")
+    from_date: str = Field(..., description="Start date (YYYY-MM-DD)")
+    to_date: str = Field(..., description="End date (YYYY-MM-DD)")
+    district_id: Optional[int] = Field(None, description="Optional district ID")
+    market_id: Optional[int] = Field(None, description="Optional market ID")
+
+
+class CedaPricesResponse(BaseModel):
+    """Response containing price records from CEDA."""
+    success: bool = True
+    count: int
+    prices: List[CedaPriceItem]
+
+
+class CedaQuantityItem(BaseModel):
+    """Daily mandi arrival quantity record returned by CEDA Agmarknet API."""
+    date: str
+    commodity_id: int
+    census_state_id: int
+    census_district_id: Optional[int] = None
+    market_id: Optional[int] = None
+    quantity: Optional[float] = None
+
+
+class CedaQuantitiesRequest(BaseModel):
+    """Request schema for retrieving arrival quantities from CEDA."""
+    commodity_id: int = Field(..., description="CEDA commodity ID")
+    state_id: int = Field(..., description="CEDA state ID")
+    from_date: str = Field(..., description="Start date (YYYY-MM-DD)")
+    to_date: str = Field(..., description="End date (YYYY-MM-DD)")
+    district_id: Optional[int] = Field(None, description="Optional district ID")
+    market_id: Optional[int] = Field(None, description="Optional market ID")
+
+
+class CedaQuantitiesResponse(BaseModel):
+    """Response containing arrival quantity records from CEDA."""
+    success: bool = True
+    count: int
+    quantities: List[CedaQuantityItem]
+
 
 class DataCollectRequest(BaseModel):
     """
     Request schema for triggering agricultural data collection.
-    Allows optional custom source URL or commodity filter.
+    Supports CEDA Agmarknet API parameters as well as custom source URL.
     """
-    source_url: Optional[str] = Field(None, description="Optional custom CSV or API URL")
     commodity: Optional[str] = Field("Wheat", description="Commodity to collect (e.g., Wheat, Rice, Maize)")
+    state: Optional[str] = Field(None, description="Optional state name (e.g., Punjab, Maharashtra)")
+    district: Optional[str] = Field(None, description="Optional district name (e.g., Gurdaspur, Nagpur)")
+    market: Optional[str] = Field(None, description="Optional market name")
+    from_date: Optional[str] = Field(None, description="Optional start date (YYYY-MM-DD)")
+    to_date: Optional[str] = Field(None, description="Optional end date (YYYY-MM-DD)")
+    source: Optional[str] = Field("ceda", description="Data source to use ('ceda' or 'csv')")
+    source_url: Optional[str] = Field(None, description="Optional custom CSV or API URL")
     limit: Optional[int] = Field(100, ge=1, le=10000, description="Max records to ingest in this batch")
 
 
@@ -293,6 +417,11 @@ class DataCollectResponse(BaseModel):
     records_stored: int = Field(..., description="Records inserted or upserted into Supabase")
     records_skipped: int = Field(..., description="Records skipped due to validation failure or duplicates")
     message: Optional[str] = Field(None, description="Descriptive status message")
+    records_received: Optional[int] = Field(None, description="Total raw records received")
+    records_rejected: Optional[int] = Field(None, description="Number of invalid records rejected by validator")
+    records_inserted: Optional[int] = Field(None, description="Number of new records inserted into database")
+    records_skipped_as_duplicates: Optional[int] = Field(None, description="Number of existing records skipped as duplicates or updated")
+    final_database_count: Optional[int] = Field(None, description="Final database record count after ingestion")
 
 
 class DataHealthResponse(BaseModel):

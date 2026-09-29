@@ -2,20 +2,20 @@
 data.py - Agricultural Data Collection & Storage FastAPI Router
 
 WHY THIS FILE EXISTS:
-Allows users, schedulers, or administrators to trigger agricultural data collection
-and verify system and storage health via clean REST API endpoints.
+Allows users, schedulers, or administrators to interact with CEDA Agmarknet data
+and trigger agricultural data collection and Supabase storage via REST API endpoints.
 
 WHAT THIS FILE DOES:
+- GET  /api/data/commodities: Retrieve full catalog of agricultural commodities from CEDA.
+- GET  /api/data/geographies: Retrieve states and districts geography hierarchy from CEDA.
+- POST /api/data/markets: Retrieve mandis / markets for a commodity and geography from CEDA.
+- POST /api/data/prices: Retrieve real mandi price records from CEDA.
+- POST /api/data/quantities: Retrieve arrival quantity records from CEDA.
 - POST /api/data/collect: Triggers FETCH -> VALIDATE -> CLEAN -> NORMALIZE -> SUPABASE STORE.
 - GET  /api/data/health: Checks if backend, data source, and Supabase are healthy.
+- GET  /api/data/status: Returns source name, database target, records count, and latest date.
+- GET  /api/data/records: Lists recent stored market records from Supabase.
 - GET  /api/data/market-summary: Returns count of records, grains, and mandis stored.
-- GET  /api/data/records: Lists recent stored market records.
-
-WHAT GOES IN:
-- HTTP requests (JSON body or query parameters).
-
-WHAT COMES OUT:
-- Standardized JSON responses (DataCollectResponse, DataHealthResponse, etc.).
 """
 
 import logging
@@ -26,7 +26,26 @@ from sqlalchemy.orm import Session
 try:
     from app.database import get_db
     from app.models import AgriculturalMarketData, DataSource, Grain
+    from app.data.fetcher import (
+        CedaAuthError,
+        CedaRateLimitError,
+        CedaNetworkError,
+        CedaApiError,
+    )
     from app.schemas import (
+        CedaCommoditiesResponse,
+        CedaCommodityItem,
+        CedaGeographiesResponse,
+        CedaGeographyItem,
+        CedaMarketItem,
+        CedaMarketsRequest,
+        CedaMarketsResponse,
+        CedaPriceItem,
+        CedaPricesRequest,
+        CedaPricesResponse,
+        CedaQuantitiesRequest,
+        CedaQuantitiesResponse,
+        CedaQuantityItem,
         DataCollectRequest,
         DataCollectResponse,
         DataHealthResponse,
@@ -41,7 +60,26 @@ try:
 except ImportError:
     from database import get_db
     from models import AgriculturalMarketData, DataSource, Grain
+    from data.fetcher import (
+        CedaAuthError,
+        CedaRateLimitError,
+        CedaNetworkError,
+        CedaApiError,
+    )
     from schemas import (
+        CedaCommoditiesResponse,
+        CedaCommodityItem,
+        CedaGeographiesResponse,
+        CedaGeographyItem,
+        CedaMarketItem,
+        CedaMarketsRequest,
+        CedaMarketsResponse,
+        CedaPriceItem,
+        CedaPricesRequest,
+        CedaPricesResponse,
+        CedaQuantitiesRequest,
+        CedaQuantitiesResponse,
+        CedaQuantityItem,
         DataCollectRequest,
         DataCollectResponse,
         DataHealthResponse,
@@ -66,6 +104,252 @@ def get_service() -> DataIngestionService:
     """Dependency provider for DataIngestionService."""
     return data_ingestion_service
 
+
+# =====================================================================
+# CEDA Agmarknet Direct Query Endpoints
+# =====================================================================
+
+@router.get(
+    "/commodities",
+    response_model=CedaCommoditiesResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get all available commodities from CEDA Agmarknet",
+    description="Returns the full catalog of commodities tracked in Agmarknet dataset."
+)
+async def get_commodities(
+    force_refresh: bool = Query(False, description="Bypass cache and refresh from CEDA"),
+    service: DataIngestionService = Depends(get_service),
+) -> CedaCommoditiesResponse:
+    """Retrieves all agricultural commodities supported by CEDA Agmarknet."""
+    try:
+        raw_list = await service.get_ceda_commodities(force_refresh=force_refresh)
+        items = [
+            CedaCommodityItem(
+                commodity_id=int(c["commodity_id"]),
+                commodity_name=c["commodity_name"],
+            )
+            for c in raw_list
+            if "commodity_id" in c and "commodity_name" in c
+        ]
+        return CedaCommoditiesResponse(success=True, count=len(items), commodities=items)
+    except CedaRateLimitError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(exc)
+        )
+    except CedaAuthError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc)
+        )
+    except Exception as exc:
+        logger.error(f"Failed to fetch CEDA commodities: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"CEDA commodities retrieval failed: {str(exc)}"
+        )
+
+
+@router.get(
+    "/geographies",
+    response_model=CedaGeographiesResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get all states and districts from CEDA Agmarknet",
+    description="Returns census state and district hierarchy for market mapping."
+)
+async def get_geographies(
+    force_refresh: bool = Query(False, description="Bypass cache and refresh from CEDA"),
+    service: DataIngestionService = Depends(get_service),
+) -> CedaGeographiesResponse:
+    """Retrieves all states and districts from CEDA Agmarknet."""
+    try:
+        raw_list = await service.get_ceda_geographies(force_refresh=force_refresh)
+        items = [
+            CedaGeographyItem(
+                census_state_id=int(g["census_state_id"]),
+                census_state_name=g["census_state_name"],
+                census_district_id=int(g["census_district_id"]),
+                census_district_name=g["census_district_name"],
+            )
+            for g in raw_list
+            if "census_state_id" in g and "census_district_id" in g
+        ]
+        return CedaGeographiesResponse(success=True, count=len(items), geographies=items)
+    except CedaRateLimitError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(exc)
+        )
+    except CedaAuthError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc)
+        )
+    except Exception as exc:
+        logger.error(f"Failed to fetch CEDA geographies: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"CEDA geographies retrieval failed: {str(exc)}"
+        )
+
+
+@router.post(
+    "/markets",
+    response_model=CedaMarketsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get markets/mandis for a commodity and geography",
+    description="Returns available mandis for specified commodity, state, and district."
+)
+async def get_markets(
+    request: CedaMarketsRequest,
+    service: DataIngestionService = Depends(get_service),
+) -> CedaMarketsResponse:
+    """Retrieves markets for a given commodity, state, and optional district."""
+    try:
+        raw_list = await service.get_ceda_markets(
+            commodity_id=request.commodity_id,
+            state_id=request.state_id,
+            district_id=request.district_id,
+            indicator=request.indicator or "price",
+        )
+        items = [
+            CedaMarketItem(
+                market_id=int(m["market_id"]),
+                market_name=m["market_name"],
+                census_state_id=m.get("census_state_id"),
+                census_district_id=m.get("census_district_id"),
+            )
+            for m in raw_list
+            if "market_id" in m and "market_name" in m
+        ]
+        return CedaMarketsResponse(success=True, count=len(items), markets=items)
+    except CedaRateLimitError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(exc)
+        )
+    except CedaAuthError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc)
+        )
+    except Exception as exc:
+        logger.error(f"Failed to fetch CEDA markets: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"CEDA markets retrieval failed: {str(exc)}"
+        )
+
+
+@router.post(
+    "/prices",
+    response_model=CedaPricesResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get real prices from CEDA Agmarknet",
+    description="Retrieves wholesale mandi prices (min, max, modal) for specified date range."
+)
+async def get_prices(
+    request: CedaPricesRequest,
+    service: DataIngestionService = Depends(get_service),
+) -> CedaPricesResponse:
+    """Retrieves real price records directly from CEDA Agmarknet."""
+    try:
+        raw_list = await service.get_ceda_prices(
+            commodity_id=request.commodity_id,
+            state_id=request.state_id,
+            from_date=request.from_date,
+            to_date=request.to_date,
+            district_id=request.district_id,
+            market_id=request.market_id,
+        )
+        items = [
+            CedaPriceItem(
+                date=str(p.get("date", "")),
+                commodity_id=int(p.get("commodity_id", request.commodity_id)),
+                census_state_id=int(p.get("census_state_id", request.state_id)),
+                census_district_id=p.get("census_district_id"),
+                market_id=p.get("market_id"),
+                min_price=float(p["min_price"]) if p.get("min_price") is not None else None,
+                max_price=float(p["max_price"]) if p.get("max_price") is not None else None,
+                modal_price=float(p["modal_price"]) if p.get("modal_price") is not None else None,
+            )
+            for p in raw_list
+            if "date" in p
+        ]
+        return CedaPricesResponse(success=True, count=len(items), prices=items)
+    except CedaRateLimitError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(exc)
+        )
+    except CedaAuthError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc)
+        )
+    except Exception as exc:
+        logger.error(f"Failed to fetch CEDA prices: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"CEDA prices retrieval failed: {str(exc)}"
+        )
+
+
+@router.post(
+    "/quantities",
+    response_model=CedaQuantitiesResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get real arrival quantities from CEDA Agmarknet",
+    description="Retrieves arrival quantity/volume records for specified date range."
+)
+async def get_quantities(
+    request: CedaQuantitiesRequest,
+    service: DataIngestionService = Depends(get_service),
+) -> CedaQuantitiesResponse:
+    """Retrieves real quantity records directly from CEDA Agmarknet."""
+    try:
+        raw_list = await service.get_ceda_quantities(
+            commodity_id=request.commodity_id,
+            state_id=request.state_id,
+            from_date=request.from_date,
+            to_date=request.to_date,
+            district_id=request.district_id,
+            market_id=request.market_id,
+        )
+        items = [
+            CedaQuantityItem(
+                date=str(q.get("date", "")),
+                commodity_id=int(q.get("commodity_id", request.commodity_id)),
+                census_state_id=int(q.get("census_state_id", request.state_id)),
+                census_district_id=q.get("census_district_id"),
+                market_id=q.get("market_id"),
+                quantity=float(q["quantity"]) if q.get("quantity") is not None else None,
+            )
+            for q in raw_list
+            if "date" in q
+        ]
+        return CedaQuantitiesResponse(success=True, count=len(items), quantities=items)
+    except CedaRateLimitError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(exc)
+        )
+    except CedaAuthError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc)
+        )
+    except Exception as exc:
+        logger.error(f"Failed to fetch CEDA quantities: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"CEDA quantities retrieval failed: {str(exc)}"
+        )
+
+
+# =====================================================================
+# End-to-End Ingestion, Storage, and Health Endpoints
+# =====================================================================
 
 @router.get(
     "/health",
@@ -99,15 +383,7 @@ async def get_data_status(
     service: DataIngestionService = Depends(get_service),
     db: Session = Depends(get_db),
 ) -> DataStatusResponse:
-    """
-    Returns pipeline status matching Section 17 requirements:
-    {
-      "source": "agmarknet_open_data",
-      "database": "supabase",
-      "records_stored": 1170,
-      "latest_record_date": "2017-01-01"
-    }
-    """
+    """Returns pipeline status matching platform requirements."""
     import os
     summary = service.get_market_summary(db=db)
     db_url = os.getenv("DATABASE_URL", "")
@@ -119,7 +395,7 @@ async def get_data_status(
     database_name = "supabase" if supabase_configured else ("postgresql" if "postgres" in db_url.lower() else "sqlite")
 
     source_row = db.query(DataSource).first()
-    source_name = source_row.name if source_row else "agmarknet_open_data"
+    source_name = source_row.name if source_row else "ceda_agmarknet_api"
 
     commodities = [g[0] for g in db.query(Grain.name).distinct().all()]
 
@@ -137,7 +413,7 @@ async def get_data_status(
     response_model=DataCollectResponse,
     status_code=status.HTTP_200_OK,
     summary="Trigger agricultural data collection and Supabase storage",
-    description="Fetches grain prices from external/government source, validates, cleans, and stores into Supabase."
+    description="Fetches real prices from CEDA Agmarknet, validates, cleans, and stores into Supabase."
 )
 async def collect_data(
     request: Optional[DataCollectRequest] = None,
@@ -145,7 +421,7 @@ async def collect_data(
     db: Session = Depends(get_db),
 ) -> DataCollectResponse:
     """
-    Executes data collection pipeline.
+    Executes real data collection pipeline.
     Does NOT fabricate data. Returns summary of fetched, valid, stored, and skipped records.
     """
     req = request or DataCollectRequest()
@@ -154,6 +430,12 @@ async def collect_data(
             source_url=req.source_url,
             commodity=req.commodity or "Wheat",
             limit=req.limit or 100,
+            source=req.source or "ceda",
+            state=req.state,
+            district=req.district,
+            market=req.market,
+            from_date=req.from_date,
+            to_date=req.to_date,
             db=db,
         )
         return DataCollectResponse(**result)

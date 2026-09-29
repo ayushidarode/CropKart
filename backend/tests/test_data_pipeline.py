@@ -41,9 +41,15 @@ class TestDataPipeline(unittest.TestCase):
 
     def setUp(self):
         """Set up an isolated in-memory SQLite database for test runs."""
-        self.engine = create_engine("sqlite:///:memory:", echo=False)
+        from sqlalchemy.pool import StaticPool
+        self.engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+            echo=False
+        )
         Base.metadata.create_all(bind=self.engine)
-        self.SessionTest = sessionmaker(bind=self.engine)
+        self.SessionTest = sessionmaker(bind=self.engine, autocommit=False, autoflush=False)
         self.db = self.SessionTest()
 
         self.validator = DataValidator()
@@ -55,8 +61,13 @@ class TestDataPipeline(unittest.TestCase):
             transformer=self.transformer,
         )
 
+        from app.database import get_db
+        app.dependency_overrides[get_db] = lambda: self.db
+
     def tearDown(self):
         """Clean up database session and drop all tables."""
+        from app.database import get_db
+        app.dependency_overrides.pop(get_db, None)
         self.db.close()
         Base.metadata.drop_all(bind=self.engine)
 

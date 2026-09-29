@@ -163,6 +163,10 @@ def init_db() -> None:
     Creates database tables defined by SQLAlchemy models
     if they don't already exist.
     """
+    try:
+        from app import models  # noqa: F401
+    except ImportError:
+        import models  # noqa: F401
     Base.metadata.create_all(bind=engine)
 
 

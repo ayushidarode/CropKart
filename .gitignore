@@ -27,7 +27,8 @@ langflow_data/
 *.log
 .vscode/
 .idea/
-.DS_Store
+# Scratch scripts
+scratch/
 
 # Uploads
 public/uploads/*

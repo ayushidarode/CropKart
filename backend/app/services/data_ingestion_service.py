@@ -42,14 +42,28 @@ from sqlalchemy.orm import Session
 try:
     from app.database import SessionLocal, init_db, test_db_connection
     from app.models import AgriculturalMarketData, DataSource, Grain, Location
-    from app.data.fetcher import DataFetcher, FetchError
+    from app.data.fetcher import (
+        DataFetcher,
+        FetchError,
+        CedaRateLimitError,
+        CedaAuthError,
+        CedaNetworkError,
+        CedaApiError,
+    )
     from app.data.validator import DataValidator
     from app.data.cleaner import DataCleaner
     from app.data.transformer import DataTransformer
 except ImportError:
     from database import SessionLocal, init_db, test_db_connection
     from models import AgriculturalMarketData, DataSource, Grain, Location
-    from data.fetcher import DataFetcher, FetchError
+    from data.fetcher import (
+        DataFetcher,
+        FetchError,
+        CedaRateLimitError,
+        CedaAuthError,
+        CedaNetworkError,
+        CedaApiError,
+    )
     from data.validator import DataValidator
     from data.cleaner import DataCleaner
     from data.transformer import DataTransformer
@@ -117,72 +131,175 @@ class DataIngestionService:
         source_url: Optional[str] = None,
         commodity: str = "Wheat",
         limit: int = 100,
+        source: Optional[str] = "ceda",
+        state: Optional[str] = None,
+        district: Optional[str] = None,
+        market: Optional[str] = None,
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
         db: Optional[Session] = None,
+        dry_run: bool = False,
     ) -> Dict[str, Any]:
         """
         Runs the full agricultural data pipeline:
-        FETCH -> VALIDATE -> CLEAN -> NORMALIZE -> STORE (UPSERT)
+        FETCH (CEDA / Open Data) -> VALIDATE -> CLEAN -> NORMALIZE -> STORE (UPSERT)
         """
         # Step 1: FETCH
-        logger.info(f"Starting data collection for commodity: {commodity}")
+        logger.info(
+            f"API request started: source={source}, commodity={commodity}, "
+            f"state={state}, district={district}, market={market}, dates={from_date} to {to_date}"
+        )
         try:
             raw_records, source_name, target_url = await self.fetcher.fetch_source_data(
-                source_url=source_url, commodity=commodity, limit=limit
+                source_url=source_url,
+                commodity=commodity,
+                limit=limit,
+                source=source,
+                state=state,
+                district=district,
+                market=market,
+                from_date=from_date,
+                to_date=to_date,
             )
+        except CedaRateLimitError as exc:
+            logger.warning(f"CEDA rate limit encountered: {exc}")
+            return {
+                "success": False,
+                "source": "ceda_agmarknet_api",
+                "dry_run": dry_run,
+                "records_fetched": 0,
+                "records_received": 0,
+                "records_valid": 0,
+                "records_rejected": 0,
+                "records_stored": 0,
+                "records_inserted": 0,
+                "records_skipped": 0,
+                "records_skipped_as_duplicates": 0,
+                "message": f"Rate limit reached: {str(exc)}",
+            }
         except FetchError as exc:
             logger.error(f"Data fetch error: {exc}")
             return {
                 "success": False,
                 "source": "external_api",
+                "dry_run": dry_run,
                 "records_fetched": 0,
+                "records_received": 0,
                 "records_valid": 0,
+                "records_rejected": 0,
                 "records_stored": 0,
+                "records_inserted": 0,
                 "records_skipped": 0,
+                "records_skipped_as_duplicates": 0,
                 "message": f"Fetch failed: {str(exc)}",
             }
 
         total_fetched = len(raw_records)
-        if total_fetched == 0:
-            return {
-                "success": True,
-                "source": source_name,
-                "records_fetched": 0,
-                "records_valid": 0,
-                "records_stored": 0,
-                "records_skipped": 0,
-                "message": "Data source reachable = YES, Data available = NO (0 records)",
-            }
+        logger.info(f"Number of records received: {total_fetched}")
 
-        # Step 2: VALIDATE
-        valid_records, skipped_records, _ = self.validator.validate_records(raw_records)
-        total_valid = len(valid_records)
-        total_invalid = len(skipped_records)
-
-        if total_valid == 0:
-            return {
-                "success": False,
-                "source": source_name,
-                "records_fetched": total_fetched,
-                "records_valid": 0,
-                "records_stored": 0,
-                "records_skipped": total_fetched,
-                "message": "All fetched records were invalid",
-            }
-
-        # Step 3: CLEAN
-        cleaned_records = self.cleaner.clean_records(valid_records)
-
-        # Step 4: TRANSFORM (Deterministic IDs)
-        transformed_records = self.transformer.transform_records(cleaned_records)
-
-        # Step 5: STORE (Supabase / PostgreSQL)
         close_session = False
         if db is None:
-            init_db()
+            try:
+                init_db()
+            except Exception as exc:
+                logger.warning(f"init_db check warning: {exc}")
             db = SessionLocal()
             close_session = True
 
         try:
+            if total_fetched == 0:
+                final_db_count = db.query(AgriculturalMarketData).count()
+                logger.info(f"Number of valid records: 0")
+                logger.info(f"Number rejected: 0")
+                logger.info(f"Number inserted: 0")
+                logger.info(f"Number skipped as duplicates: 0")
+                logger.info(f"Final database count: {final_db_count}")
+                return {
+                    "success": True,
+                    "source": source_name,
+                    "dry_run": dry_run,
+                    "records_fetched": 0,
+                    "records_received": 0,
+                    "records_valid": 0,
+                    "records_rejected": 0,
+                    "records_stored": 0,
+                    "records_inserted": 0,
+                    "records_skipped": 0,
+                    "records_skipped_as_duplicates": 0,
+                    "final_database_count": final_db_count,
+                    "message": "Data source reachable = YES, Data available = NO (0 records)",
+                }
+
+            # Step 2: VALIDATE
+            valid_records, skipped_records, _ = self.validator.validate_records(raw_records)
+            total_valid = len(valid_records)
+            total_invalid = len(skipped_records)
+            logger.info(f"Number of valid records: {total_valid}")
+            logger.info(f"Number rejected: {total_invalid}")
+
+            if total_valid == 0:
+                final_db_count = db.query(AgriculturalMarketData).count()
+                logger.info(f"Number inserted: 0")
+                logger.info(f"Number skipped as duplicates: 0")
+                logger.info(f"Final database count: {final_db_count}")
+                return {
+                    "success": False,
+                    "source": source_name,
+                    "dry_run": dry_run,
+                    "records_fetched": total_fetched,
+                    "records_received": total_fetched,
+                    "records_valid": 0,
+                    "records_rejected": total_invalid,
+                    "records_stored": 0,
+                    "records_inserted": 0,
+                    "records_skipped": total_fetched,
+                    "records_skipped_as_duplicates": 0,
+                    "final_database_count": final_db_count,
+                    "message": "All fetched records were invalid",
+                }
+
+            # Step 3: CLEAN
+            cleaned_records = self.cleaner.clean_records(valid_records)
+
+            # Step 4: TRANSFORM (Deterministic IDs)
+            transformed_records = self.transformer.transform_records(cleaned_records)
+
+            # Step 5: STORE (Supabase / PostgreSQL)
+            if dry_run:
+                # Dry run: check which records exist without inserting or updating
+                source_record_ids = [r["source_record_id"] for r in transformed_records]
+                existing_count = (
+                    db.query(AgriculturalMarketData)
+                    .filter(AgriculturalMarketData.source_record_id.in_(source_record_ids))
+                    .count()
+                )
+                would_insert = total_valid - existing_count
+                would_update = existing_count
+                final_db_count = db.query(AgriculturalMarketData).count()
+                logger.info(f"Number inserted: {would_insert} (dry run)")
+                logger.info(f"Number skipped as duplicates: {would_update} (dry run)")
+                logger.info(f"Final database count: {final_db_count}")
+                return {
+                    "success": True,
+                    "source": source_name,
+                    "dry_run": True,
+                    "records_fetched": total_fetched,
+                    "records_received": total_fetched,
+                    "records_valid": total_valid,
+                    "records_rejected": total_invalid,
+                    "records_stored": would_insert,
+                    "records_inserted": would_insert,
+                    "records_skipped": total_invalid + would_update,
+                    "records_skipped_as_duplicates": would_update,
+                    "records_would_insert": would_insert,
+                    "records_would_update": would_update,
+                    "final_database_count": final_db_count,
+                    "message": (
+                        f"[DRY RUN] Processed {total_fetched} records: {would_insert} would be inserted, "
+                        f"{would_update} would be updated, {total_invalid} invalid skipped."
+                    ),
+                }
+
             stored_count, duplicate_count = self._store_records_in_db(
                 db=db,
                 source_name=source_name,
@@ -190,14 +307,25 @@ class DataIngestionService:
                 records=transformed_records,
             )
             total_skipped = total_invalid + duplicate_count
+            final_db_count = db.query(AgriculturalMarketData).count()
+
+            logger.info(f"Number inserted: {stored_count}")
+            logger.info(f"Number skipped as duplicates: {duplicate_count}")
+            logger.info(f"Final database count: {final_db_count}")
 
             return {
                 "success": True,
                 "source": source_name,
+                "dry_run": False,
                 "records_fetched": total_fetched,
+                "records_received": total_fetched,
                 "records_valid": total_valid,
+                "records_rejected": total_invalid,
                 "records_stored": stored_count,
+                "records_inserted": stored_count,
                 "records_skipped": total_skipped,
+                "records_skipped_as_duplicates": duplicate_count,
+                "final_database_count": final_db_count,
                 "message": (
                     f"Processed {total_fetched} records: {stored_count} stored in Supabase, "
                     f"{duplicate_count} existing duplicates skipped/updated, {total_invalid} invalid records skipped."
@@ -210,9 +338,13 @@ class DataIngestionService:
                 "success": False,
                 "source": source_name,
                 "records_fetched": total_fetched,
+                "records_received": total_fetched,
                 "records_valid": total_valid,
+                "records_rejected": total_invalid if 'total_invalid' in locals() else 0,
                 "records_stored": 0,
+                "records_inserted": 0,
                 "records_skipped": total_fetched,
+                "records_skipped_as_duplicates": 0,
                 "message": f"Database storage error: {str(exc)}",
             }
         finally:
@@ -236,7 +368,7 @@ class DataIngestionService:
             source = DataSource(
                 name=source_name,
                 source_url=source_url,
-                source_type="csv" if "csv" in source_name else "json_api",
+                source_type="json_api" if "api" in source_name else "csv",
             )
             db.add(source)
             db.flush()
@@ -284,6 +416,7 @@ class DataIngestionService:
 
         stored_count = 0
         duplicate_count = 0
+        now_utc = datetime.now(timezone.utc)
 
         for r in records:
             rec_id = r["source_record_id"]
@@ -291,17 +424,18 @@ class DataIngestionService:
             loc_obj = existing_locs[(r["state"], r["district"], r["market"])]
 
             if rec_id in existing_market_records:
-                # Existing record: update prices if newer / different (UPSERT)
+                # Existing record: update prices and timestamp if newer (UPSERT)
                 existing = existing_market_records[rec_id]
                 existing.arrival_quantity = r["arrival_quantity"]
                 existing.minimum_price = r["minimum_price"]
                 existing.maximum_price = r["maximum_price"]
                 existing.modal_price = r["modal_price"]
                 existing.variety = r["variety"]
-                existing.updated_at = datetime.now(timezone.utc)
+                existing.collected_at = now_utc
+                existing.updated_at = now_utc
                 duplicate_count += 1
             else:
-                # New record: insert
+                # New record: insert with fetch timestamp
                 new_entry = AgriculturalMarketData(
                     source_id=source.id,
                     grain_id=grain_obj.id,
@@ -313,13 +447,80 @@ class DataIngestionService:
                     maximum_price=r["maximum_price"],
                     modal_price=r["modal_price"],
                     source_record_id=rec_id,
+                    collected_at=now_utc,
                 )
                 db.add(new_entry)
+                existing_market_records[rec_id] = new_entry
                 stored_count += 1
 
         db.commit()
         logger.info(f"Database commit successful: {stored_count} new, {duplicate_count} existing")
         return stored_count, duplicate_count
+
+    # =================================================================
+    # Direct CEDA Endpoints Delegate Methods
+    # =================================================================
+
+    async def get_ceda_commodities(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
+        """Delegates commodity retrieval to CEDA fetcher."""
+        return await self.fetcher.ceda_fetcher.get_commodities(force_refresh=force_refresh)
+
+    async def get_ceda_geographies(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
+        """Delegates geography retrieval to CEDA fetcher."""
+        return await self.fetcher.ceda_fetcher.get_geographies(force_refresh=force_refresh)
+
+    async def get_ceda_markets(
+        self,
+        commodity_id: int,
+        state_id: int,
+        district_id: Optional[int] = None,
+        indicator: str = "price",
+    ) -> List[Dict[str, Any]]:
+        """Delegates market retrieval to CEDA fetcher."""
+        return await self.fetcher.ceda_fetcher.get_markets(
+            commodity_id=commodity_id,
+            state_id=state_id,
+            district_id=district_id,
+            indicator=indicator,
+        )
+
+    async def get_ceda_prices(
+        self,
+        commodity_id: int,
+        state_id: int,
+        from_date: str,
+        to_date: str,
+        district_id: Optional[int] = None,
+        market_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Delegates price retrieval to CEDA fetcher."""
+        return await self.fetcher.ceda_fetcher.get_prices(
+            commodity_id=commodity_id,
+            state_id=state_id,
+            from_date=from_date,
+            to_date=to_date,
+            district_id=district_id,
+            market_id=market_id,
+        )
+
+    async def get_ceda_quantities(
+        self,
+        commodity_id: int,
+        state_id: int,
+        from_date: str,
+        to_date: str,
+        district_id: Optional[int] = None,
+        market_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Delegates quantity retrieval to CEDA fetcher."""
+        return await self.fetcher.ceda_fetcher.get_quantities(
+            commodity_id=commodity_id,
+            state_id=state_id,
+            from_date=from_date,
+            to_date=to_date,
+            district_id=district_id,
+            market_id=market_id,
+        )
 
     def get_market_summary(self, db: Session) -> Dict[str, Any]:
         """Returns aggregate metrics of stored agricultural market data."""

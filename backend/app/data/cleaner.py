@@ -114,10 +114,10 @@ class DataCleaner:
             return None
 
         # Clean fields
-        state = self.clean_name(get_field("State Name", "state", "state_name"))
-        district = self.clean_name(get_field("District Name", "district", "district_name"))
+        state = self.clean_name(get_field("State Name", "state", "state_name", "census_state_name"))
+        district = self.clean_name(get_field("District Name", "district", "district_name", "census_district_name"))
         market = self.clean_name(get_field("Market Name", "market", "market_name", "mandi"))
-        commodity = self.clean_name(get_field("commodity", "Commodity", "grain", "crop"))
+        commodity = self.clean_name(get_field("commodity", "Commodity", "grain", "crop", "commodity_name"))
         variety = self.clean_name(get_field("Variety", "variety")) or "Standard"
 
         record_date = self.parse_date(
