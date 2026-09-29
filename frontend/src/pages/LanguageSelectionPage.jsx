@@ -94,9 +94,9 @@ export default function LanguageSelectionPage({ onContinueCustom }) {
 
   return (
     <div
-      className="min-h-screen text-amber-950 flex flex-col justify-between relative overflow-x-hidden selection:bg-amber-200 selection:text-amber-900 font-sans"
+      className="min-h-screen text-amber-950 flex flex-col justify-between relative overflow-x-hidden selection:bg-crop-yellow-300 selection:text-amber-950 font-sans bg-cream-50"
       style={{
-        background: 'radial-gradient(ellipse at 50% 30%, #FFFDF9 0%, #FAF4E8 50%, #F5EADB 100%)',
+        background: 'radial-gradient(ellipse at 50% 20%, #FFFDF9 0%, #FAF5EC 50%, #F5EDE0 100%)',
       }}
     >
       {/* ========================================================
@@ -106,14 +106,28 @@ export default function LanguageSelectionPage({ onContinueCustom }) {
           ======================================================== */}
       <RealisticFloatingCropBorder />
 
-      {/* Ambient background warm glow */}
-      <div className="fixed inset-0 pointer-events-none -z-10" aria-hidden="true">
-        <div
-          className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] rounded-full blur-3xl opacity-30"
-          style={{
-            background: 'radial-gradient(circle, rgba(245, 158, 11, 0.4) 0%, rgba(234, 88, 12, 0.2) 50%, transparent 75%)',
-          }}
-        />
+      {/* ========================================================
+          DYNAMIC HARMONIOUS BACKGROUND: ORANGE + YELLOW + RED + GREEN
+          Soft blurred ambient blobs with gentle drift (transform-only)
+          ======================================================== */}
+      <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden" aria-hidden="true">
+        {/* 1. Crop-Orange Ambient Blob (Top-Left Drift) */}
+        <div className="absolute -top-16 -left-16 w-80 h-80 sm:w-96 sm:h-96 rounded-full blur-3xl opacity-25 bg-crop-orange-500 animate-blob-drift-1" />
+
+        {/* 2. Crop-Yellow Ambient Sunlight Blob (Top-Right Glow) */}
+        <div className="absolute top-10 right-0 w-72 h-72 sm:w-88 sm:h-88 rounded-full blur-3xl opacity-30 bg-crop-yellow-300 animate-blob-drift-2" />
+
+        {/* 3. Crop-Green Agricultural Sprout Blob (Mid-Left Horizon) */}
+        <div className="absolute top-1/2 -left-20 w-80 h-80 sm:w-96 sm:h-96 rounded-full blur-3xl opacity-20 bg-crop-green-400 animate-blob-drift-3" />
+
+        {/* 4. Crop-Red Harvest Blossom Blob (Center-Right Depth) */}
+        <div className="absolute top-1/3 right-10 w-72 h-72 sm:w-88 sm:h-88 rounded-full blur-3xl opacity-20 bg-crop-red-400 animate-blob-drift-4" />
+
+        {/* 5. Crop-Green Fresh Foliage Blob (Bottom-Left) */}
+        <div className="absolute -bottom-16 left-10 w-72 h-72 sm:w-84 sm:h-84 rounded-full blur-3xl opacity-20 bg-crop-green-600 animate-blob-drift-1" />
+
+        {/* 6. Crop-Orange Warm Hearth Blob (Bottom-Right behind truck) */}
+        <div className="absolute -bottom-20 -right-20 w-80 h-80 sm:w-96 sm:h-96 rounded-full blur-3xl opacity-25 bg-crop-orange-400 animate-blob-drift-2" />
       </div>
 
       {/* ========================================================
