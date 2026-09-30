@@ -26,7 +26,6 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_URL: postgresql+psycopg://cropkart:${POSTGRES_PASSWORD:-cropkart123}@postgres:5432/cropkart
       LANGFLOW_URL: ${LANGFLOW_DOCKER_URL:-http://host.docker.internal:7860}
     ports:
       - "8000:8000"
@@ -36,6 +35,28 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  langflow:
+    image: langflowai/langflow:latest
+    container_name: cropkart-langflow
+    restart: unless-stopped
+    environment:
+      LANGFLOW_HOST: 0.0.0.0
+      LANGFLOW_PORT: 7860
+      LANGFLOW_SUPERUSER: admin
+      LANGFLOW_SUPERUSER_PASSWORD: admin123
+      LANGFLOW_AUTO_LOGIN: "false"
+      LANGFLOW_DATABASE_URL: sqlite:////app/data/langflow.db
+      LANGFLOW_API_KEY: ${LANGFLOW_API_KEY:-sk-FTo7wTXICwi1DSB91FTTNHQjGixFnnInbQn6O8uLR5Q}
+    ports:
+      - "7860:7860"
+    volumes:
+      - cropkart-langflow-data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
 volumes:
   postgres_data:
     name: cropkart_postgres_data
+  cropkart-langflow-data:
+    name: cropkart-langflow-data
+    external: true

@@ -6,6 +6,7 @@ Provides chat and agricultural intelligence endpoints ready for LangFlow integra
 """
 
 import logging
+
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -13,11 +14,31 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------
+# Path bootstrap & Imports
+# ---------------------------------------------------------
+
+import sys
+from pathlib import Path
+
+_backend_dir = str(Path(__file__).resolve().parent.parent)
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
+
 try:
     from app.ai_logic import crop_sathi
+
     from app.api.location import router as location_router
     from app.api.data import router as data_router
-    from app.database import get_db, init_db, test_db_connection
+    from app.api.tools import router as tools_router
+
+    from app.database import (
+        get_db,
+        init_db,
+        test_db_connection,
+    )
+
     from app.schemas import (
         ChatRequest,
         ChatResponse,
@@ -26,11 +47,20 @@ try:
         FarmingAdviceRequest,
         PricingRequest,
     )
+
 except ImportError:
     from ai_logic import crop_sathi
+
     from api.location import router as location_router
     from api.data import router as data_router
-    from database import get_db, init_db, test_db_connection
+    from api.tools import router as tools_router
+
+    from database import (
+        get_db,
+        init_db,
+        test_db_connection,
+    )
+
     from schemas import (
         ChatRequest,
         ChatResponse,
@@ -48,7 +78,7 @@ except ImportError:
 app = FastAPI(
     title="CropKart AI API",
     description="Smart Agriculture Marketplace & CropSathi AI Automation Service",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 
@@ -79,6 +109,10 @@ app.add_middleware(
 app.include_router(location_router)
 app.include_router(data_router)
 
+# NEW:
+# Dedicated backend tool endpoints used by LangFlow Agent.
+app.include_router(tools_router)
+
 
 # ---------------------------------------------------------
 # Database Startup
@@ -88,14 +122,16 @@ app.include_router(data_router)
 async def startup_event():
     """
     Initializes database tables when FastAPI starts.
-    Logs any database initialization error clearly without silent suppression.
+    Logs any database initialization error clearly
+    without silently suppressing it.
     """
     try:
         init_db()
+
     except Exception as exc:
         logger.error(
             f"Database initialization failed during startup: {exc}",
-            exc_info=True
+            exc_info=True,
         )
 
 
@@ -111,7 +147,7 @@ async def root():
     return {
         "status": "ok",
         "service": "CropSathi AI",
-        "message": "CropKart AI Service is running"
+        "message": "CropKart AI Service is running",
     }
 
 
@@ -126,7 +162,7 @@ async def health():
     """
     return {
         "status": "ok",
-        "service": "CropSathi AI"
+        "service": "CropSathi AI",
     }
 
 
@@ -137,12 +173,16 @@ async def health():
 @app.get("/api/db-test", tags=["Database"])
 async def db_test():
     """
-    Tests the connection between FastAPI and Supabase PostgreSQL.
-    Safely returns connection status without leaking credentials or URLs.
+    Tests the connection between FastAPI and
+    Supabase PostgreSQL.
+
+    Safely returns connection status without
+    leaking credentials or URLs.
     """
     connected = test_db_connection()
+
     return {
-        "database_connected": connected
+        "database_connected": connected,
     }
 
 
@@ -151,24 +191,37 @@ async def db_test():
 # ---------------------------------------------------------
 
 @app.get("/api/crops", tags=["Crops"])
-async def get_crops_list(db: Session = Depends(get_db)):
+async def get_crops_list(
+    db: Session = Depends(get_db),
+):
     """
-    Read-only endpoint to retrieve existing crop records from the database.
+    Read-only endpoint to retrieve existing crop records
+    from the database.
+
     Does not insert duplicate records.
     """
     try:
-        result = db.execute(text("SELECT * FROM crops LIMIT 50"))
+        result = db.execute(
+            text("SELECT * FROM crops LIMIT 50")
+        )
+
         rows = result.mappings().all()
+
         return {
             "success": True,
             "count": len(rows),
-            "crops": [dict(r) for r in rows],
+            "crops": [dict(row) for row in rows],
         }
+
     except Exception as exc:
-        logger.error(f"Failed to retrieve crops: {exc}", exc_info=True)
+        logger.error(
+            f"Failed to retrieve crops: {exc}",
+            exc_info=True,
+        )
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database query failed: {str(exc)}"
+            detail=f"Database query failed: {str(exc)}",
         )
 
 
@@ -179,9 +232,11 @@ async def get_crops_list(db: Session = Depends(get_db)):
 @app.post(
     "/api/ai/chat",
     response_model=ChatResponse,
-    tags=["AI Automation"]
+    tags=["AI Automation"],
 )
-async def ai_chat(request: ChatRequest):
+async def ai_chat(
+    request: ChatRequest,
+):
     """
     CropSathi conversational chat endpoint.
     """
@@ -189,19 +244,24 @@ async def ai_chat(request: ChatRequest):
         response_text = await crop_sathi.chat(
             message=request.message,
             language=request.language,
-            role=request.role
+            role=request.role,
         )
 
         return ChatResponse(
             success=True,
             message=request.message,
-            response=response_text
+            response=response_text,
         )
 
     except Exception as exc:
+        logger.error(
+            f"CropSathi chat error: {exc}",
+            exc_info=True,
+        )
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"CropSathi AI service error: {str(exc)}"
+            detail=f"CropSathi AI service error: {str(exc)}",
         )
 
 
@@ -211,9 +271,11 @@ async def ai_chat(request: ChatRequest):
 
 @app.post(
     "/api/ai/crop-match",
-    tags=["AI Automation"]
+    tags=["AI Automation"],
 )
-async def ai_crop_match(request: CropMatchRequest):
+async def ai_crop_match(
+    request: CropMatchRequest,
+):
     """
     Matches crop availability with potential buyers
     or market demands.
@@ -221,7 +283,7 @@ async def ai_crop_match(request: CropMatchRequest):
     return await crop_sathi.crop_match(
         crop=request.crop,
         quantity=request.quantity,
-        location=request.location
+        location=request.location,
     )
 
 
@@ -231,16 +293,18 @@ async def ai_crop_match(request: CropMatchRequest):
 
 @app.post(
     "/api/ai/pricing",
-    tags=["AI Automation"]
+    tags=["AI Automation"],
 )
-async def ai_pricing(request: PricingRequest):
+async def ai_pricing(
+    request: PricingRequest,
+):
     """
     Provides pricing intelligence,
     MSP guidelines, and market trends.
     """
     return await crop_sathi.pricing_intelligence(
         crop=request.crop,
-        location=request.location
+        location=request.location,
     )
 
 
@@ -250,17 +314,54 @@ async def ai_pricing(request: PricingRequest):
 
 @app.post(
     "/api/ai/demand-forecast",
-    tags=["AI Automation"]
+    tags=["AI Automation"],
 )
-async def ai_demand_forecast(request: DemandForecastRequest):
+async def ai_demand_forecast(
+    request: DemandForecastRequest,
+):
     """
     Projects upcoming market demand trends
     for a specified crop.
+
+    NOTE:
+    This is the existing AI endpoint.
+
+    The new LangFlow tool endpoint is:
+        POST /api/tools/v1/demand-forecast
     """
-    return await crop_sathi.demand_forecasting(
-        crop=request.crop,
-        location=request.location
-    )
+
+    try:
+        return await crop_sathi.demand_forecasting(
+            crop=request.crop,
+            location=request.location,
+            days=request.days,
+        )
+
+    except TypeError:
+        # Backward compatibility in case the current
+        # demand_forecasting() implementation does not
+        # yet accept the days parameter.
+        logger.warning(
+            "crop_sathi.demand_forecasting() does not "
+            "currently accept 'days'. Falling back to "
+            "the existing function signature."
+        )
+
+        return await crop_sathi.demand_forecasting(
+            crop=request.crop,
+            location=request.location,
+        )
+
+    except Exception as exc:
+        logger.error(
+            f"Demand forecasting error: {exc}",
+            exc_info=True,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Demand forecasting failed: {str(exc)}",
+        )
 
 
 # ---------------------------------------------------------
@@ -269,14 +370,16 @@ async def ai_demand_forecast(request: DemandForecastRequest):
 
 @app.post(
     "/api/ai/farming-advice",
-    tags=["AI Automation"]
+    tags=["AI Automation"],
 )
-async def ai_farming_advice(request: FarmingAdviceRequest):
+async def ai_farming_advice(
+    request: FarmingAdviceRequest,
+):
     """
     Provides agronomy advice and recommended practices.
     """
     return await crop_sathi.farming_advice(
         crop=request.crop,
         question=request.question,
-        location=request.location
+        location=request.location,
     )

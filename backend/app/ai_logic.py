@@ -291,19 +291,38 @@ class CropSathiAI:
     async def demand_forecasting(
         self,
         crop: str,
-        location: Optional[str] = None
+        location: Optional[str] = None,
+        days: int = 30
     ) -> Dict[str, Any]:
-        """Placeholder demand forecasting."""
-        return {
-            "status": "success",
-            "crop": crop,
-            "location": location or "Regional Hub",
-            "forecast_period": "Next 30 Days",
-            "projected_demand": "High",
-            "demand_index": 84.5,
-            "confidence_score": 0.89,
-            "message": f"Demand forecast generated for {crop}.",
-        }
+        """Calculates real machine learning demand forecast using Ridge pipeline."""
+        try:
+            try:
+                from app.services.demand_service import get_demand_forecast
+            except ImportError:
+                from backend.app.services.demand_service import get_demand_forecast
+
+            loc = location.strip() if (location and location.strip()) else "Pune"
+            result = get_demand_forecast(crop=crop, location=loc, days=days)
+            return {
+                "status": "success",
+                "crop": result["crop"],
+                "location": result["location"],
+                "forecast_period": f"Next {days} Days",
+                "projected_demand": f"{result['predicted_demand']} {result['unit']}",
+                "demand_index": round(min(100.0, (result["predicted_demand"] / 2000.0) * 100), 1),
+                "model_version": result["model_version"],
+                "data_source": result.get("data_source", ""),
+                "message": f"ML demand forecast generated for {crop} in {loc}.",
+            }
+        except Exception as exc:
+            return {
+                "status": "error",
+                "crop": crop,
+                "location": location or "Pune",
+                "forecast_period": f"Next {days} Days",
+                "error": str(exc),
+                "message": f"Could not calculate demand forecast: {str(exc)}",
+            }
 
     async def farming_advice(
         self,
