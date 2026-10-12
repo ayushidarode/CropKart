@@ -1,0 +1,18 @@
+{
+  "projectName": "CropKart Monorepo",
+  "projectType": "full-stack marketplace",
+  "workflow": "gsd-new-project",
+  "status": "initialized",
+  "createdAt": "2026-10-12",
+  "currentPhase": "Phase 1",
+  "techStack": [
+    "Next.js",
+    "React",
+    "FastAPI",
+    "Python",
+    "LangFlow",
+    "Supabase",
+    "PostgreSQL",
+    "Docker"
+  ]
+}
